@@ -11,8 +11,8 @@ const MAX_RETRIES    = 3;
 const TIMEOUT_BUDGET = 110_000;
 const DATA_DE        = "01/01/2024";
 
-// [tableName, endpoint, callName, modulo, extraParams?]
-const ALL_TABLES: [string, string, string, number, Record<string, unknown>?][] = [
+// [tableName, endpoint, callName, modulo, extraParams?, paginaKey?, regKey?]
+const ALL_TABLES: [string, string, string, number, Record<string, unknown>?, string?, string?][] = [
   // Módulo 1 — Geral
   ["1.1.7. ListarClientes","geral/clientes/","ListarClientes",1],
   ["1.1.8. ListarClientesResumido","geral/clientes/","ListarClientesResumido",1],
@@ -156,8 +156,8 @@ const ALL_TABLES: [string, string, string, number, Record<string, unknown>?][] =
   ["6.19.1. ListarEtapasFaturamento","produtos/etapafat/","ListarEtapasFaturamento",6],
   ["6.20.1. ListarTipoUtilizacao","servicos/tipoutilizacao/","ListarTipoUtilizacao",6],
   ["6.21.1. ListarClassificacaoServico","servicos/classificacaoservico/","ListarClassificacaoServico",6],
-  // Módulo 7 — Contador
-  ["7.1.1. ListarDocumentos","contador/xml/","ListarDocumentos",7,{"dEmiDe":DATA_DE}],
+  // Módulo 7 — Contador (usa nPagina/nRegPorPagina em vez de pagina/registros_por_pagina)
+  ["7.1.1. ListarDocumentos","contador/xml/","ListarDocumentos",7,{"cModelo":"55"},"nPagina","nRegPorPagina"],
 ];
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
@@ -217,14 +217,18 @@ Deno.serve(async (req: Request) => {
   let synced = 0, skipped = 0, inserted = 0;
 
   for (const entry of tables) {
-    const [tableName, endpoint, callName, , extraParams] = entry;
+    const [tableName, endpoint, callName, , extraParams, paginaKey, regKey] = entry;
     const extra = extraParams ?? {};
+    const pkPag = paginaKey ?? "pagina";
+    const pkReg = regKey ?? "registros_por_pagina";
     if (Date.now() - startTime > TIMEOUT_BUDGET) { results.push({ table: tableName, status: "timeout_budget" }); continue; }
     const { count: sbCount, error: cErr } = await supabase.from(tableName).select("*", { count: "exact", head: true });
     if (cErr) { results.push({ table: tableName, status: "sb_error", error: cErr.message }); continue; }
-    let omieTotal = 0, firstData: unknown[] = [], apiError: string | null = null;
+    let omieTotal = 0, firstData: unknown[] = [], apiError: string | null = null, rawKeys: string[] = [];
+    let fp: Record<string, unknown> = {};
     try {
-      const fp = await omiePost(endpoint, callName, { pagina: 1, registros_por_pagina: PAGE_SIZE, ...extra });
+      fp = await omiePost(endpoint, callName, { [pkPag]: 1, [pkReg]: PAGE_SIZE, ...extra });
+      rawKeys = Object.keys(fp);
       omieTotal = (fp.total_de_registros as number) ?? (fp.nTotRegistros as number) ?? (fp.total as number) ?? 0;
       if (omieTotal === 0 && fp.faultstring) apiError = String(fp.faultstring).slice(0, 200);
       const dk = Object.keys(fp).find((k) => Array.isArray(fp[k]) && k !== "param");
@@ -236,20 +240,30 @@ Deno.serve(async (req: Request) => {
       results.push({ table: tableName, status: "up_to_date", count: sbCount });
       continue;
     }
+    // Resume from the next unsynced page when sbCount is an exact page multiple
+    const resumePage = (!force && (sbCount ?? 0) > 0 && (sbCount ?? 0) < omieTotal && (sbCount ?? 0) % PAGE_SIZE === 0)
+      ? (sbCount ?? 0) / PAGE_SIZE + 1
+      : 1;
+    const isResume = resumePage > 1;
     const totalPages = Math.ceil(omieTotal / PAGE_SIZE) || 1;
-    let recs: unknown[] = [...firstData];
-    for (let p = 2; p <= totalPages; p++) {
+    let recs: unknown[] = isResume ? [] : [...firstData];
+    for (let p = isResume ? resumePage : 2; p <= totalPages; p++) {
       if (Date.now() - startTime > TIMEOUT_BUDGET) break;
       try {
-        const pd = await omiePost(endpoint, callName, { pagina: p, registros_por_pagina: PAGE_SIZE, ...extra });
+        const pd = await omiePost(endpoint, callName, { [pkPag]: p, [pkReg]: PAGE_SIZE, ...extra });
         const dk = Object.keys(pd).find((k) => Array.isArray(pd[k]) && k !== "param");
         if (dk) recs = recs.concat(pd[dk] as unknown[]);
         await sleep(SLEEP_MS);
       } catch { break; }
     }
-    if (recs.length === 0) { results.push({ table: tableName, status: "sem_dados", api_error: apiError }); continue; }
-    // Truncate before re-sync to prevent duplicate accumulation on partial retries
-    if ((sbCount ?? 0) > 0) {
+    if (recs.length === 0) {
+      const rawDebug: Record<string, unknown> = {};
+      for (const k of rawKeys) { if (!Array.isArray(fp[k])) rawDebug[k] = fp[k]; }
+      results.push({ table: tableName, status: isResume ? "resume_complete" : "sem_dados", api_error: apiError, raw_keys: rawKeys, raw_scalars: rawDebug });
+      continue;
+    }
+    // Truncate only on full sync (not resume) to avoid re-inserting already-synced pages
+    if (!isResume && (sbCount ?? 0) > 0) {
       await supabase.from(tableName).delete().gte("created_at", "2000-01-01T00:00:00Z");
     }
     const rows = recs.map((r) => ({ dados_raw: r }));
