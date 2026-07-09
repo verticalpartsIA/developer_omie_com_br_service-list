@@ -48,6 +48,7 @@ Este repositório não cobre só Omie — também centraliza conhecimento de out
 | Formulário público via token + envio por WhatsApp (sem login, captura de respostas e anexos) — extraído do Módulo 7 do `003_requisicoes` | [whatsapp-form-token-pattern.md](whatsapp-form-token-pattern.md) |
 | Coleta e validação de assinatura digital via link público (Módulo Jurídico) — extraído do `010_vpprd` | [digital-signature-collection-pattern.md](digital-signature-collection-pattern.md) |
 | Copiloto flutuante consciente da tela (DOM-aware, não visão computacional) — extraído do `010_vpprd` | [dom-aware-copilot-agent-pattern.md](dom-aware-copilot-agent-pattern.md) |
+| Relatório diário agendado via Telegram (cron determinístico, sem IA) — extraído do `008_BorderoDiario` | [scheduled-telegram-report-pattern.md](scheduled-telegram-report-pattern.md) |
 
 ## Convenções do schema
 - Tabelas em `snake_case`, em português
