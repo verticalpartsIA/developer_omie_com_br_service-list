@@ -45,6 +45,7 @@ Este repositório não cobre só Omie — também centraliza conhecimento de out
 | Assunto | Arquivo |
 |---|---|
 | WhatsApp (Evolution API) + Claude rodando na VPS Hostinger — arquitetura, fluxo de auto-resposta, Claude Code como agente de operação da VPS | [evolution-whatsapp-claude-vps.md](evolution-whatsapp-claude-vps.md) |
+| Formulário público via token + envio por WhatsApp (sem login, captura de respostas e anexos) — extraído do Módulo 7 do `003_requisicoes` | [whatsapp-form-token-pattern.md](whatsapp-form-token-pattern.md) |
 
 ## Convenções do schema
 - Tabelas em `snake_case`, em português
