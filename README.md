@@ -3,6 +3,10 @@
 > **Espelho Supabase de todas as APIs do Omie ERP**  
 > Referência: [developer.omie.com.br/service-list](https://developer.omie.com.br/service-list/)
 
+## Natureza deste repositório (leia antes de tudo)
+
+Este é um **Hub de Tutoriais e Metadados para consumo por LLMs/Agentes de IA** — não um repositório de código de produção. O schema Omie (tabelas abaixo) é a exceção documental necessária (é a própria informação a ser consumida); os demais arquivos (`*-pattern.md`, `*-tutorial.md`) são **guias de engenharia** ("como construir", "onde aprofundar"), não código de produção colado — cada um aponta para o repositório real de onde o padrão foi extraído. Ao adicionar novo conteúdo aqui, prefira ensinar o raciocínio e citar o arquivo de origem em vez de copiar código bruto.
+
 ---
 
 ## O que é este projeto?
@@ -217,6 +221,7 @@ Este repositório contém o **schema completo de tabelas Supabase (PostgreSQL)**
 | [`digital-signature-collection-pattern.md`](digital-signature-collection-pattern.md) | Coleta/validação de assinatura digital via link público (Módulo Jurídico) | Implementar assinatura de contrato/proposta sem login |
 | [`dom-aware-copilot-agent-pattern.md`](dom-aware-copilot-agent-pattern.md) | Copiloto flutuante DOM-aware (preenche/revisa tela via IA) | Implementar assistente de IA que lê e preenche formulários da tela atual |
 | [`scheduled-telegram-report-pattern.md`](scheduled-telegram-report-pattern.md) | Relatório diário agendado via Telegram (cron determinístico, sem IA) | Implementar automação de relatório/alerta agendado |
+| [`modulo-alcadas-tutorial.md`](modulo-alcadas-tutorial.md) | Tutorial de engenharia: níveis de aprovação por valor (Alçadas) — passo a passo, não código bruto | Implementar sistema de aprovação hierárquica por faixa de valor |
 
 ### Regras de negócio, endpoints e schemas — por módulo Omie (Issues)
 
