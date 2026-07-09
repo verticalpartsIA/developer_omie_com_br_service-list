@@ -80,6 +80,53 @@ Além do Claude-chatbot (item 2, chamado via API HTTP para gerar texto), existe 
 - *Claude-chatbot*: só recebe texto e devolve texto via API HTTPS — não tem acesso ao servidor.
 - *Claude Code-operador*: tem acesso a shell/SSH na VPS e pode alterar infraestrutura — deve ser usado com escopo bem definido (o que pode e não pode tocar) e sempre com passo de diagnóstico/backup antes de qualquer mudança.
 
+## Requisito de Banco de Dados (Supabase)
+
+**Para que isso funcione você precisa criar no Supabase o seguinte:**
+
+```sql
+-- Caixa de entrada universal para eventos da Evolution API.
+CREATE TABLE public.whatsapp_messages (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  instance     TEXT        NOT NULL DEFAULT 'pv360',
+  remote_jid   TEXT        NOT NULL,                 -- ex.: 5511999887766@s.whatsapp.net
+  push_name    TEXT,
+  from_me      BOOLEAN     NOT NULL DEFAULT false,
+  message_id   TEXT,
+  body         TEXT        NOT NULL,
+  media_type   TEXT,                                 -- image | video | audio | document | sticker
+  media_url    TEXT,
+  ticket_id    UUID        REFERENCES public.tickets(id) ON DELETE SET NULL,
+  raw          JSONB,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_wa_msg_remote  ON public.whatsapp_messages(remote_jid, created_at DESC);
+CREATE INDEX idx_wa_msg_ticket  ON public.whatsapp_messages(ticket_id);
+ALTER TABLE public.whatsapp_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "wa_msg_select" ON public.whatsapp_messages FOR SELECT TO authenticated USING (true);
+-- INSERT é feito só pelo backend via service role (bypassa RLS) — sem policy de insert para anon/authenticated.
+
+-- Tabela de tickets (mínimo exigido pela integração; o projeto de origem tem colunas adicionais de domínio)
+CREATE TABLE public.tickets (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer           TEXT NOT NULL,
+  part               TEXT NOT NULL,
+  part_code          TEXT NOT NULL,
+  reason             TEXT NOT NULL,
+  occurrence_reason  TEXT NOT NULL DEFAULT 'outro',
+  channel            TEXT NOT NULL DEFAULT 'whatsapp',
+  whatsapp_thread_id TEXT,
+  status             TEXT NOT NULL DEFAULT 'aberto', -- aberto | em_atendimento | aguardando_cliente | aguardando_interno | concluido | cancelado
+  created_by         UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  assigned_to        UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+```
+
+> ⚠️ **Dependência não resolvida encontrada na análise:** o código de auto-resposta (`claude-reply.ts`) consulta `whatsapp_messages` filtrando por uma coluna `phone` (`.eq("phone", phone)`) que **não existe em nenhuma migration rastreada** no repositório de origem — é provavelmente uma coluna gerada (`GENERATED ALWAYS AS`) criada manualmente direto no Supabase, fora do controle de versão. **Antes de replicar este padrão em outro projeto, verifique e recrie essa coluna explicitamente** (ex.: `phone TEXT GENERATED ALWAYS AS (regexp_replace(remote_jid, '@.*$', '')) STORED`), em vez de assumir que ela existe.
+
 ## Checklist para replicar em um novo projeto (ex.: vpsistema.com)
 1. Subir uma instância Evolution API (Docker) na VPS de destino, ou reutilizar uma existente com uma nova instância nomeada.
 2. Configurar o webhook da instância apontando para um endpoint do novo projeto.
