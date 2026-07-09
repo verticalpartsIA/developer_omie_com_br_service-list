@@ -71,6 +71,81 @@ O cliente (sem sessão) envia arquivo em base64 para uma server function, que:
 
 Bucket configurado como **privado** (`public: false`), com `allowed_mime_types` restrito (ex.: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`) e limite de tamanho (ex.: 10MB). Leitura só para usuários autenticados — o lado público nunca lê o bucket diretamente, só escreve via server function.
 
+## Requisito de Banco de Dados (Supabase)
+
+**Para que isso funcione você precisa criar no Supabase o seguinte** (schema real do M7, use como template trocando o prefixo `comando_` pelo domínio novo):
+
+```sql
+create extension if not exists pgcrypto;
+
+create type public.comando_pedido_status as enum ('rascunho','enviado','visualizado','respondido');
+
+create sequence if not exists public.comando_pedidos_numero_seq;
+
+create or replace function public.gerar_token_comando() returns text
+language sql volatile as $$ select encode(gen_random_bytes(24), 'hex'); $$;
+
+create table public.comando_pedidos (
+  id uuid primary key default gen_random_uuid(),
+  numero_documento text not null unique,
+  token text not null unique default public.gerar_token_comando(),
+  status public.comando_pedido_status not null default 'rascunho',
+  cliente_nome text not null,
+  cliente_telefone text not null,
+  cliente_email text,
+  projeto_numero text,
+  observacoes_internas text,
+  respostas jsonb not null default '{}'::jsonb,
+  requisition_id uuid references public.requisitions(id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  enviado_at timestamptz, enviado_by uuid references auth.users(id) on delete set null,
+  visualizado_at timestamptz,
+  respondido_at timestamptz,
+  expires_at timestamptz,
+  reaberto_at timestamptz, reaberto_by uuid references auth.users(id) on delete set null
+);
+create index comando_pedidos_status_idx on public.comando_pedidos (status);
+create index comando_pedidos_token_idx on public.comando_pedidos (token);
+
+create table public.comando_anexos (
+  id uuid primary key default gen_random_uuid(),
+  pedido_id uuid not null references public.comando_pedidos(id) on delete cascade,
+  secao text,
+  file_path text not null,
+  file_name text not null,
+  file_size bigint,
+  mime_type text,
+  created_at timestamptz not null default now()
+);
+
+create table public.comando_auditoria (
+  id uuid primary key default gen_random_uuid(),
+  pedido_id uuid not null references public.comando_pedidos(id) on delete cascade,
+  evento text not null, -- criado | enviado | visualizado | respondido | reaberto
+  ip text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.comando_pedidos enable row level security;
+alter table public.comando_anexos enable row level security;
+alter table public.comando_auditoria enable row level security;
+create policy comando_pedidos_authenticated_all on public.comando_pedidos for all to authenticated using (true) with check (true);
+create policy comando_anexos_authenticated_all on public.comando_anexos for all to authenticated using (true) with check (true);
+create policy comando_auditoria_authenticated_all on public.comando_auditoria for all to authenticated using (true) with check (true);
+-- Acesso público (sem login) é 100% via server function com service role — não há policy de "anon" de propósito.
+
+-- Bucket privado para anexos
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('comando-anexos', 'comando-anexos', false, 10485760, array['image/jpeg','image/png','image/webp','application/pdf'])
+on conflict (id) do nothing;
+create policy "Authenticated users can read comando anexos" on storage.objects for select to authenticated using (bucket_id = 'comando-anexos');
+```
+
+> Nota: `comando_pedidos.requisition_id` referencia `public.requisitions(id)`, uma tabela própria do domínio de origem (requisições de compra). Ao replicar em outro projeto, remova essa FK ou aponte para a tabela equivalente do novo domínio — ela não faz parte do padrão genérico.
+
 ## Checklist para replicar em um novo formulário/domínio
 1. Criar as 3 tabelas (`pedidos`/`anexos`/`auditoria`) trocando o prefixo pelo domínio novo.
 2. Gerar token único (`gen_random_bytes` + `encode(..., 'hex')`) e numeração de documento própria (sequence + prefixo).
