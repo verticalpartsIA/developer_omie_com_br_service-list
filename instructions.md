@@ -39,6 +39,13 @@ Use isto quando a pergunta for orientada a processo, não a módulo técnico:
 | Ordens de serviço e contratos | `ordens_servico`, `contratos_servico` — ver [#8](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/8) |
 | Tabelas fiscais auxiliares (CFOP, CST, NCM, CEST) | módulo Impostos — ver [#5](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/5) |
 
+## Outras integrações da VerticalParts documentadas aqui
+Este repositório não cobre só Omie — também centraliza conhecimento de outras integrações usadas em projetos da VerticalParts, para qualquer IA consumir:
+
+| Assunto | Arquivo |
+|---|---|
+| WhatsApp (Evolution API) + Claude rodando na VPS Hostinger — arquitetura, fluxo de auto-resposta, Claude Code como agente de operação da VPS | [evolution-whatsapp-claude-vps.md](evolution-whatsapp-claude-vps.md) |
+
 ## Convenções do schema
 - Tabelas em `snake_case`, em português
 - Toda tabela tem `id UUID PRIMARY KEY`, `created_at`, `updated_at`
