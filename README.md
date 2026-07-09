@@ -263,6 +263,56 @@ Este repositório contém o **schema completo de tabelas Supabase (PostgreSQL)**
 | **Dia útil anterior** | Regra de cálculo de data de referência de relatórios: pula sábado/domingo (não cobre feriados) — usada para o Borderô sempre mostrar o último dia útil fechado. | `008_BorderoDiario/script/gerar_bordero.py`, [scheduled-telegram-report-pattern.md](scheduled-telegram-report-pattern.md) |
 | **NF-e / NFS-e / CT-e** | Documentos fiscais eletrônicos (Nota Fiscal eletrônica, Nota Fiscal de Serviço eletrônica, Conhecimento de Transporte eletrônico) — emissão/consulta de NF-e é o maior gap do mirror Omie atual. | Issues [#7](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/7), [#8](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/8) |
 | **bd_Omie** | Nome do projeto Supabase que hospeda este espelho do Omie ERP; consumido em modo somente-leitura por outros sistemas da VerticalParts (ex.: `004_sac_posvenda360`, `003_requisicoes`). | `README.md`, `instructions.md` |
+| **vpsistema.com (IdP)** | Portal central de identidade e SSO de todo o grupo VerticalParts — login único, catálogo de módulos, permissões e auditoria. Ver seção dedicada abaixo. | `001_vpsistema/README.md`, `001_vpsistema/supabase/functions/*` |
+| **`profiles` (vpsistema)** | Tabela de colaboradores ativos da VerticalParts (nome, cargo, departamento, nível de acesso) — fonte canônica de identidade do grupo. | `001_vpsistema` — Supabase `ubdkoqxfwcraftesgmbw` |
+| **`module_permissions`** | Tabela de allowlist de acesso por colaborador × módulo. Sem linhas para um usuário = acesso pleno a todos os módulos; com linhas = só os slugs listados. | `001_vpsistema` — Supabase `ubdkoqxfwcraftesgmbw` |
+| **SSO — `token` vs `magiclink`** | Duas famílias de federação de identidade usadas pelo vpsistema: `token` (app satélite confia direto no JWT do vpsistema, sem Auth próprio) e `magiclink` (app satélite tem Supabase Auth separado; vpsistema cria/casa o usuário por e-mail via service role e gera magic link). Não confundir com o item "Service role vs anon key" acima — são mecanismos complementares. | `001_vpsistema/supabase/functions/_shared/apps.ts`, `sso-proxy/index.ts`, `provision-module-user/index.ts` |
+
+---
+
+## Identity Provider (IdP) — vpsistema.com
+
+> **vpsistema.com é o Identity Provider (IdP) e hub de Single Sign-On (SSO) central de todo o ecossistema VerticalParts.** Login único, catálogo de sistemas (módulos), controle de acesso e auditoria para todos os colaboradores ativos. Repositório: [`verticalpartsIA/001_vpsistema`](https://github.com/verticalpartsIA/001_vpsistema).
+
+### Onde estão os dados de "Usuários" — Supabase do vpsistema
+
+| Tabela | Projeto Supabase | Descrição |
+|---|---|---|
+| `profiles` | `ubdkoqxfwcraftesgmbw` (`001_vpsistema`) | Colaboradores ativos: nome, e-mail, cargo, departamento, nível (`Colaborador`/`Lider`/`Administrador`) |
+| `modules` | `ubdkoqxfwcraftesgmbw` (`001_vpsistema`) | Catálogo de sistemas satélites (slug, nome, URL, ícone, cor, `is_active`) |
+| `module_permissions` | `ubdkoqxfwcraftesgmbw` (`001_vpsistema`) | Allowlist granular usuário × módulo |
+| `activity_logs` | `ubdkoqxfwcraftesgmbw` (`001_vpsistema`) | Auditoria de login, acesso a módulo e ações administrativas |
+
+### ⚠️ "Usuários" ≠ "Alçadas" — não são a mesma coisa, nem vivem no mesmo lugar
+O termo **"Alçada"** (nível de aprovação por faixa de valor) é uma **regra de negócio local do módulo de Requisições**, não parte da identidade/SSO. Ela vive em um projeto Supabase **diferente** do vpsistema:
+
+| O quê | Onde vive |
+|---|---|
+| Identidade do colaborador (quem é, cargo, se está ativo) | `001_vpsistema` → tabela `profiles`, Supabase `ubdkoqxfwcraftesgmbw` |
+| Alçada de aprovação (quanto cada nível pode aprovar) | `003_requisicoes` → `database/004_approval_tiers_and_admin.sql` + `src/lib/approval.ts`, Supabase próprio do vprequisicoes (`vvgcrhtmzvssfdazkkzk`) |
+
+Um novo sistema que precise saber **"este colaborador está ativo?"** consulta `profiles` no vpsistema. Um sistema que precise saber **"este colaborador pode aprovar R$ 2.000?"** consulta a lógica de alçada local do projeto que a implementa — são consultas a dois bancos diferentes, não uma tabela unificada.
+
+### Federação de SSO — duas famílias (não existe um único `auth.users` compartilhado)
+Não há uma tabela de usuários única usada por todos os sistemas. A identidade é federada de duas formas, configuradas em `001_vpsistema/supabase/functions/_shared/apps.ts`:
+
+| Tipo | Apps | Como funciona |
+|---|---|---|
+| `token` | `vpclick`, `catraca`, `propostas`, `vpprd` | App satélite não tem Auth próprio — recebe e confia direto no JWT do vpsistema via `?sso_token=` |
+| `magiclink` | `vprequisicoes`, `posvenda360`, `visitas` | App satélite tem seu **próprio** projeto Supabase Auth; o vpsistema cria/casa o usuário por e-mail (service role) e gera um magic link de login automático |
+
+Provisionamento é automático: assim que um admin concede uma linha em `module_permissions`, um trigger dispara a Edge Function `provision-module-user`, que **revalida a permissão direto no banco** antes de provisionar (proteção contra chamada forjada, já que uma chamada disparada pelo Postgres não carrega JWT de usuário).
+
+## Regras de Comportamento para LLMs/Agentes de IA (Consumo de Dados de Colaboradores)
+
+Ao construir ou avaliar qualquer solução nova para a VerticalParts que precise saber **quem é o colaborador** ou **o que ele pode acessar**, siga esta ordem:
+
+1. **Não crie uma tabela de usuários paralela.** Identidade canônica é `profiles` em `001_vpsistema` (Supabase `ubdkoqxfwcraftesgmbw`). Duplicar isso fragmenta a fonte de verdade.
+2. **Para autenticação/login de um sistema novo**, prefira o padrão `token` (confiar no JWT do vpsistema) sempre que o novo sistema puder aceitar essa dependência — é mais simples e não duplica Auth. Só use o padrão `magiclink` (Supabase Auth próprio + provisionamento por e-mail) se o sistema tiver uma razão real para banco de auth separado.
+3. **Para saber "quem pode acessar o quê"**, consulte `module_permissions` (ausência de linha = acesso pleno; presença = allowlist). Não implemente uma lógica de permissão equivalente do zero.
+4. **Regras de negócio específicas de um módulo (ex.: Alçadas) não pertencem à identidade** — ficam no schema do próprio projeto que as usa. Não misture "quem é o usuário" com "o que esse módulo permite que ele faça no domínio X".
+5. **Restrição de acesso**: este repositório de conhecimento **não contém credenciais reais** de nenhum Supabase (nem do vpsistema, nem de nenhum satélite) — apenas nomes de projeto, nomes de tabela e URLs. Uma IA que precise da chave real deve buscá-la na fonte segura de credenciais do usuário (ex.: `credenciais_master.md`) ou perguntar ao humano responsável — **nunca inventar, adivinhar ou reutilizar uma chave de outro contexto.**
+6. **Antes de recomendar um caminho de integração**, confirme se o app-alvo já está listado em `_shared/apps.ts` do `001_vpsistema`. Se não estiver (ex.: `engenharia`, `suporte` — presentes no catálogo `modules` mas sem SSO configurado ainda), isso é um gap a sinalizar, não a assumir como resolvido.
 
 ---
 
