@@ -202,4 +202,68 @@ Este repositório contém o **schema completo de tabelas Supabase (PostgreSQL)**
 
 ---
 
+## Índice de Navegação para IA (LLM-Readable Index)
+
+> Mapa exato de onde encontrar cada tipo de informação neste repositório. Todos os caminhos abaixo são relativos à raiz deste repo, exceto onde indicado como link externo.
+
+### Documentação por arquivo
+
+| Path | Conteúdo | Quando consultar |
+|---|---|---|
+| [`README.md`](README.md) | Este arquivo — schema completo das tabelas Omie↔Supabase, por módulo | Ver lista de tabelas e campos do espelho Omie |
+| [`instructions.md`](instructions.md) | Ponto de entrada para qualquer LLM — índice por módulo Omie e por fluxo de negócio | Primeira leitura ao abrir este repositório |
+| [`evolution-whatsapp-claude-vps.md`](evolution-whatsapp-claude-vps.md) | Evolution API + Claude na VPS Hostinger — auto-resposta de WhatsApp | Implementar chatbot de WhatsApp com IA |
+| [`whatsapp-form-token-pattern.md`](whatsapp-form-token-pattern.md) | Formulário público via token + envio por WhatsApp (M7 Quadro de Comando) | Implementar formulário sem login, coleta de resposta/anexo por link |
+| [`digital-signature-collection-pattern.md`](digital-signature-collection-pattern.md) | Coleta/validação de assinatura digital via link público (Módulo Jurídico) | Implementar assinatura de contrato/proposta sem login |
+| [`dom-aware-copilot-agent-pattern.md`](dom-aware-copilot-agent-pattern.md) | Copiloto flutuante DOM-aware (preenche/revisa tela via IA) | Implementar assistente de IA que lê e preenche formulários da tela atual |
+| [`scheduled-telegram-report-pattern.md`](scheduled-telegram-report-pattern.md) | Relatório diário agendado via Telegram (cron determinístico, sem IA) | Implementar automação de relatório/alerta agendado |
+
+### Regras de negócio, endpoints e schemas — por módulo Omie (Issues)
+
+| Módulo Omie | Issue | O que tem lá |
+|---|---|---|
+| Geral (clientes/produtos/cadastros) | [#1](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/1) | Tabela endpoint↔tabela Supabase, gaps |
+| CRM | [#2](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/2) | idem |
+| Finanças | [#3](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/3) | idem |
+| Compras (+ fluxo de importação) | [#4](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/4) | idem + fluxo "compras recebidas x aguardando importação" |
+| Impostos | [#5](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/5) | idem (100% coberto) |
+| Estoque | [#6](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/6) | idem |
+| Vendas e NF-e | [#7](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/7) | idem (maiores gaps: NF-e, cupom fiscal, NFC-e, SAT) |
+| Serviços e NFS-e | [#8](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/8) | idem |
+| Painel do Contador | [#9](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/9) | idem |
+
+### Rastreabilidade de portabilidade entre repositórios (Issues)
+
+| Padrão recebido | Issue de recepção (aqui) | Issue de origem (repo doador) |
+|---|---|---|
+| WhatsApp/Claude/VPS | [#10](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/10) | [004_sac_posvenda360#10](https://github.com/verticalpartsIA/004_sac_posvenda360/issues/10) |
+| Formulário via token + WhatsApp | [#11](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/11) | [003_requisicoes#33](https://github.com/verticalpartsIA/003_requisicoes/issues/33) |
+| Assinatura digital | [#12](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/12) | [010_vpprd#19](https://github.com/verticalpartsIA/010_vpprd/issues/19) |
+| Copiloto DOM-aware | [#13](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/13) | [010_vpprd#20](https://github.com/verticalpartsIA/010_vpprd/issues/20) |
+| Relatório agendado via Telegram | [#14](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/14) | [008_BorderoDiario#8](https://github.com/verticalpartsIA/008_BorderoDiario/issues/8) |
+
+---
+
+## Glossário Técnico
+
+> Termos operacionais da VerticalParts com definição verificada e ponteiro exato para onde a regra de negócio está detalhada. **Só entram aqui termos confirmados por leitura direta de código/schema** — nada é listado por suposição.
+
+| Termo | Definição | Ponteiro (path / issue) |
+|---|---|---|
+| **Alçada (nível de aprovação)** | Faixa de valor que define quem pode aprovar uma requisição de compra: Nível 1 até R$ 1.500,00, Nível 2 de R$ 1.500,01 a R$ 3.500,00, Nível 3 acima de R$ 3.500,00 (limites configuráveis pelo Admin). | `003_requisicoes/src/lib/approval.ts`, `003_requisicoes/database/004_approval_tiers_and_admin.sql` |
+| **Quadro de Comando (M7)** | Formulário técnico de levantamento de dados de motor/encoder/botoeira/portas de elevador, enviado ao cliente via link público por WhatsApp e preenchido sem login. | [whatsapp-form-token-pattern.md](whatsapp-form-token-pattern.md), `003_requisicoes/src/features/comando/*` |
+| **Token de assinatura** | Identificador curto (16 hex) que autoriza acesso público a um contrato/proposta específico na página `/assinar/{token}`, sem exigir login; expira em 7 dias. | [digital-signature-collection-pattern.md](digital-signature-collection-pattern.md), `010_vpprd/src/assinar-app.jsx` |
+| **Copiloto VP** | Widget de IA em bolinha flutuante presente em todas as telas do sistema `vpprd`; lê o DOM (não visão computacional) e responde/preenche/revisa. | [dom-aware-copilot-agent-pattern.md](dom-aware-copilot-agent-pattern.md), `010_vpprd/src/vp-copiloto.jsx` |
+| **Hermes** | Nome/marca do agente de IA "CFO digital" da VerticalParts, citado no rodapé do Borderô e em runbooks de operação da VPS — distinto do Claude-chatbot (responde texto via API) e do Claude Code-operador (executa comandos na VPS). | `008_BorderoDiario/hermes/*`, [scheduled-telegram-report-pattern.md](scheduled-telegram-report-pattern.md) |
+| **Borderô Financeiro** | Relatório diário (PDF) com notas emitidas, recebimentos e pagamentos de ontem + resumos de semana/mês/ano, gerado por cron determinístico e enviado via Telegram. | `008_BorderoDiario/script/gerar_bordero.py`, [scheduled-telegram-report-pattern.md](scheduled-telegram-report-pattern.md) |
+| **Instância `pv360` (Evolution API)** | Nome da instância WhatsApp conectada na Evolution API (VPS `72.61.48.156:8080`), reutilizada por múltiplos projetos (`004_sac_posvenda360`, `003_requisicoes`) como gateway de envio/recebimento. | [evolution-whatsapp-claude-vps.md](evolution-whatsapp-claude-vps.md), [whatsapp-form-token-pattern.md](whatsapp-form-token-pattern.md) |
+| **`@lid`** | Tipo de identificador de contato do WhatsApp com "privacidade avançada"; a Evolution API (em algumas versões) não consegue enviar mensagens para esse tipo de contato — cai para atendimento humano. | [evolution-whatsapp-claude-vps.md](evolution-whatsapp-claude-vps.md) |
+| **RLS (Row Level Security)** | Mecanismo do Postgres/Supabase usado em todas as tabelas deste espelho Omie e nos padrões documentados para restringir acesso por role (`authenticated`/`anon`/`service_role`). | `README.md` (seção Stack), issues #1–#9 |
+| **Service role vs anon key** | Duas formas de acessar o Supabase a partir de uma página pública: via server function com service role (mais seguro, usado no padrão de formulário) ou via client direto com `anon` key (usado no padrão de assinatura digital — sinalizado como risco a reforçar). | [whatsapp-form-token-pattern.md](whatsapp-form-token-pattern.md) vs [digital-signature-collection-pattern.md](digital-signature-collection-pattern.md) |
+| **Dia útil anterior** | Regra de cálculo de data de referência de relatórios: pula sábado/domingo (não cobre feriados) — usada para o Borderô sempre mostrar o último dia útil fechado. | `008_BorderoDiario/script/gerar_bordero.py`, [scheduled-telegram-report-pattern.md](scheduled-telegram-report-pattern.md) |
+| **NF-e / NFS-e / CT-e** | Documentos fiscais eletrônicos (Nota Fiscal eletrônica, Nota Fiscal de Serviço eletrônica, Conhecimento de Transporte eletrônico) — emissão/consulta de NF-e é o maior gap do mirror Omie atual. | Issues [#7](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/7), [#8](https://github.com/verticalpartsIA/developer_omie_com_br_service-list/issues/8) |
+| **bd_Omie** | Nome do projeto Supabase que hospeda este espelho do Omie ERP; consumido em modo somente-leitura por outros sistemas da VerticalParts (ex.: `004_sac_posvenda360`, `003_requisicoes`). | `README.md`, `instructions.md` |
+
+---
+
 *Projeto VerticalParts — Omie ERP Integration Layer*
