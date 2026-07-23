@@ -322,3 +322,13 @@ Ao construir ou avaliar qualquer solução nova para a VerticalParts que precise
 ---
 
 *Projeto VerticalParts — Omie ERP Integration Layer*
+
+---
+
+## Contributors
+
+- Gelson Simões — criador e responsável pelas soluções VerticalParts
+
+---
+
+**Feito por Gelson Simões**
