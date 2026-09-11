@@ -4,6 +4,7 @@ from typing import Any
 
 from .app import mcp
 from .categorias import consultar_categoria_semantica, listar_categorias_semanticas
+from .produtos_estoque import produto_360
 from .relatorios_completos import contas_pagar_relatorio_completo, contas_receber_relatorio_completo
 
 
@@ -32,6 +33,24 @@ async def omie_categorias_listar(
 async def omie_categoria_consultar(codigo: str) -> dict[str, Any]:
     """Consulta uma categoria específica e devolve seus dados gerenciais, inclusive DRE quando disponível."""
     return await consultar_categoria_semantica(codigo)
+
+
+@mcp.tool()
+async def omie_produto_360(
+    codigo_produto: int | None = None,
+    codigo_produto_integracao: str | None = None,
+    codigo: str | None = None,
+    codigo_local_estoque: int = 0,
+    data_estoque: str | None = None,
+) -> dict[str, Any]:
+    """Produto 360: cadastro, fiscal, logística e estoque em uma única visão gerencial."""
+    return await produto_360(
+        codigo_produto=codigo_produto,
+        codigo_produto_integracao=codigo_produto_integracao,
+        codigo=codigo,
+        codigo_local_estoque=codigo_local_estoque,
+        data_estoque=data_estoque,
+    )
 
 
 @mcp.tool()
