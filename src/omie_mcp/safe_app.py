@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .app import mcp
+from .relatorios_app import mcp
 from .escrita_segura import (
     lancar_pagamento_seguro,
     lancar_recebimento_seguro,
