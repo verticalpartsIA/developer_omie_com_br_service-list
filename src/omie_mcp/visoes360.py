@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .cadastros import consultar_cliente_fornecedor, normalizar_cliente_fornecedor
-from .client import client
+from .client import OmieError, client
 from .financeiro import listar_contas_pagar_financeiro
 from .receber import listar_contas_receber_financeiro
 
@@ -31,6 +31,25 @@ def _resumo_financeiro(contas: list[dict[str, Any]], *, pago: str, aberto: str) 
     }
 
 
+def _erro_sem_registros(exc: Exception) -> bool:
+    """Reconhece somente falhas funcionais do Omie que significam ausência de dados.
+
+    Não converte erros de autenticação, rede ou contrato em lista vazia.
+    """
+    texto = str(exc).casefold()
+    marcadores = (
+        "nenhum registro",
+        "não existem registros",
+        "nao existem registros",
+        "não há registros",
+        "nao ha registros",
+        "nenhum movimento",
+        "não foram encontrados registros",
+        "nao foram encontrados registros",
+    )
+    return any(marcador in texto for marcador in marcadores)
+
+
 async def cliente_360(
     codigo_cliente_omie: int,
     *,
@@ -47,36 +66,64 @@ async def cliente_360(
     cadastro_bruto = await consultar_cliente_fornecedor(codigo_cliente_omie=codigo_cliente_omie)
     cadastro = normalizar_cliente_fornecedor(cadastro_bruto)
 
-    financeiro = await listar_contas_receber_financeiro(
-        pagina=pagina_financeiro,
-        registros_por_pagina=registros_financeiro,
-        codigo_cliente=codigo_cliente_omie,
-    )
+    financeiro_ausente = False
+    try:
+        financeiro = await listar_contas_receber_financeiro(
+            pagina=pagina_financeiro,
+            registros_por_pagina=registros_financeiro,
+            codigo_cliente=codigo_cliente_omie,
+        )
+    except OmieError as exc:
+        if not _erro_sem_registros(exc):
+            raise
+        financeiro_ausente = True
+        financeiro = {
+            "contas": [],
+            "fonte": "Omie /financas/mf/ ListarMovimentos",
+            "mensagem": "Nenhum título de Contas a Receber encontrado para o cliente.",
+        }
     contas = financeiro.get("contas") or []
 
-    pedidos = await client.call(
-        "produtos/pedido",
-        "ListarPedidos",
-        {
+    pedidos_ausentes = False
+    try:
+        pedidos = await client.call(
+            "produtos/pedido",
+            "ListarPedidos",
+            {
+                "pagina": pagina_pedidos,
+                "registros_por_pagina": registros_pedidos,
+                "apenas_importado_api": "N",
+                "filtrar_por_cliente": codigo_cliente_omie,
+                "apenas_resumo": "N",
+            },
+        )
+    except OmieError as exc:
+        if not _erro_sem_registros(exc):
+            raise
+        pedidos_ausentes = True
+        pedidos = {
             "pagina": pagina_pedidos,
-            "registros_por_pagina": registros_pedidos,
-            "apenas_importado_api": "N",
-            "filtrar_por_cliente": codigo_cliente_omie,
-            "apenas_resumo": "N",
-        },
-    )
+            "total_de_paginas": 0,
+            "registros": 0,
+            "total_de_registros": 0,
+            "pedido_venda_produto": [],
+            "mensagem": "Nenhum pedido de venda encontrado para o cliente.",
+        }
 
     return {
         "tipo_visao": "CLIENTE_360",
         "codigo_cliente_omie": codigo_cliente_omie,
+        "completo": True,
         "cadastro": cadastro,
         "financeiro": {
             "resumo": _resumo_financeiro(contas, pago="valor_recebido", aberto="valor_a_receber"),
             "contas_receber": contas,
             "fonte": financeiro.get("fonte"),
+            "sem_registros": financeiro_ausente,
         },
         "vendas": {
             "pedidos": pedidos,
+            "sem_registros": pedidos_ausentes,
             "regra_vinculo": "ListarPedidos.filtrar_por_cliente = codigo_cliente_omie",
         },
         "chaves_de_correlacao": [
@@ -103,21 +150,34 @@ async def fornecedor_360(
     cadastro_bruto = await consultar_cliente_fornecedor(codigo_cliente_omie=codigo_fornecedor_omie)
     cadastro = normalizar_cliente_fornecedor(cadastro_bruto)
 
-    financeiro = await listar_contas_pagar_financeiro(
-        pagina=pagina_financeiro,
-        registros_por_pagina=registros_financeiro,
-        codigo_fornecedor=codigo_fornecedor_omie,
-    )
+    financeiro_ausente = False
+    try:
+        financeiro = await listar_contas_pagar_financeiro(
+            pagina=pagina_financeiro,
+            registros_por_pagina=registros_financeiro,
+            codigo_fornecedor=codigo_fornecedor_omie,
+        )
+    except OmieError as exc:
+        if not _erro_sem_registros(exc):
+            raise
+        financeiro_ausente = True
+        financeiro = {
+            "contas": [],
+            "fonte": "Omie /financas/mf/ ListarMovimentos",
+            "mensagem": "Nenhum título de Contas a Pagar encontrado para o fornecedor.",
+        }
     contas = financeiro.get("contas") or []
 
     return {
         "tipo_visao": "FORNECEDOR_360",
         "codigo_fornecedor_omie": codigo_fornecedor_omie,
+        "completo": True,
         "cadastro": cadastro,
         "financeiro": {
             "resumo": _resumo_financeiro(contas, pago="valor_pago", aberto="valor_a_pagar"),
             "contas_pagar": contas,
             "fonte": financeiro.get("fonte"),
+            "sem_registros": financeiro_ausente,
         },
         "compras": {
             "correlacao_disponivel": [
