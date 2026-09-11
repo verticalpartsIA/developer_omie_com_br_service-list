@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-omie-mcp = "omie_mcp.app:main"
+omie-mcp = "omie_mcp.safe_app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/omie_mcp"]
