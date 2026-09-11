@@ -10,11 +10,18 @@ def normalizar_categoria(item: dict[str, Any]) -> dict[str, Any]:
     inativa = str(item.get("conta_inativa") or "N").upper() == "S"
     totalizadora = str(item.get("totalizadora") or "N").upper() == "S"
 
+    tipo_movimento = None
+    if str(item.get("conta_receita") or "N").upper() == "S":
+        tipo_movimento = "Receita"
+    elif str(item.get("conta_despesa") or "N").upper() == "S":
+        tipo_movimento = "Despesa"
+
     return {
         "codigo": item.get("codigo"),
         "descricao": item.get("descricao"),
         "descricao_padrao": item.get("descricao_padrao"),
         "situacao": "Inativo" if inativa else ("Grupo" if totalizadora else "Ativo"),
+        "tipo_movimento": tipo_movimento,
         "conta_inativa": item.get("conta_inativa"),
         "totalizadora": item.get("totalizadora"),
         "categoria_superior": item.get("categoria_superior"),
@@ -91,3 +98,29 @@ async def consultar_categoria_semantica(codigo: str) -> dict[str, Any]:
         "categoria": normalizar_categoria(resposta),
         "fonte": "Omie /geral/categorias/ ConsultarCategoria",
     }
+
+
+async def resolver_categorias_dos_titulos(
+    contas: list[dict[str, Any]],
+    *,
+    chave_categoria: str = "categoria_codigo",
+) -> dict[str, dict[str, Any]]:
+    """Resolve apenas as categorias presentes nos títulos, uma vez por código.
+
+    Evita depender da primeira página de ListarCategorias e mantém o relatório
+    operacional mesmo se uma categoria auxiliar específica falhar.
+    """
+    codigos = sorted({str(conta[chave_categoria]) for conta in contas if conta.get(chave_categoria) not in (None, "")})
+    resolvidas: dict[str, dict[str, Any]] = {}
+    for codigo in codigos:
+        try:
+            consulta = await consultar_categoria_semantica(codigo)
+            categoria = consulta.get("categoria") or {}
+            resolvidas[codigo] = categoria
+        except Exception as exc:
+            resolvidas[codigo] = {
+                "codigo": codigo,
+                "encontrado": False,
+                "erro_enriquecimento": str(exc),
+            }
+    return resolvidas
