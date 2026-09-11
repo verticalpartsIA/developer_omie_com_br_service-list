@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from .crm import consultar_oportunidade, listar_oportunidades, listar_tarefas_crm, oportunidade_360, resumo_oportunidades
+from .financeiro import listar_contas_pagar_financeiro_todas
 from .fiscal import documento_fiscal_por_chave, listar_documentos_fiscais, resumo_contador
+from .receber import listar_contas_receber_financeiro_todas
 from .reforma_tributaria import (
     listar_classificacoes_ibs_cbs,
     listar_cst_ibs_cbs,
@@ -57,6 +59,54 @@ async def omie_ciclo_recebimento_compra_financeiro(
     chave_nfe: str | None = None,
 ) -> dict[str, Any]:
     return await ciclo_recebimento_compra_financeiro(id_recebimento=id_recebimento, chave_nfe=chave_nfe)
+
+
+@mcp.tool()
+async def omie_contas_pagar_financeiro_todas(
+    registros_por_pagina: int = 100,
+    max_paginas: int = 100,
+    status: str | None = None,
+    codigo_fornecedor: int | None = None,
+    cpf_cnpj: str | None = None,
+    codigo_projeto: int | None = None,
+    vencimento_de: str | None = None,
+    vencimento_ate: str | None = None,
+) -> dict[str, Any]:
+    """Percorre todas as páginas de Contas a Pagar até o limite de segurança informado."""
+    return await listar_contas_pagar_financeiro_todas(
+        registros_por_pagina=registros_por_pagina,
+        max_paginas=max_paginas,
+        status=status,
+        codigo_fornecedor=codigo_fornecedor,
+        cpf_cnpj=cpf_cnpj,
+        codigo_projeto=codigo_projeto,
+        vencimento_de=vencimento_de,
+        vencimento_ate=vencimento_ate,
+    )
+
+
+@mcp.tool()
+async def omie_contas_receber_financeiro_todas(
+    registros_por_pagina: int = 100,
+    max_paginas: int = 100,
+    status: str | None = None,
+    codigo_cliente: int | None = None,
+    cpf_cnpj: str | None = None,
+    codigo_projeto: int | None = None,
+    vencimento_de: str | None = None,
+    vencimento_ate: str | None = None,
+) -> dict[str, Any]:
+    """Percorre todas as páginas de Contas a Receber até o limite de segurança informado."""
+    return await listar_contas_receber_financeiro_todas(
+        registros_por_pagina=registros_por_pagina,
+        max_paginas=max_paginas,
+        status=status,
+        codigo_cliente=codigo_cliente,
+        cpf_cnpj=cpf_cnpj,
+        codigo_projeto=codigo_projeto,
+        vencimento_de=vencimento_de,
+        vencimento_ate=vencimento_ate,
+    )
 
 
 # CRM
