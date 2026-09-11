@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ class Snapshot:
     service_list_hash: str
     service_list_text: str
     catalog: list[dict[str, Any]]
+    service_pages: dict[str, dict[str, Any]]
 
 
 def _normalize_text(text: str) -> str:
@@ -37,17 +39,51 @@ def _state_path() -> Path:
     return path / "service-list.snapshot.json"
 
 
-async def capture_snapshot() -> Snapshot:
+async def _capture_service_pages(catalog: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    semaphore = asyncio.Semaphore(8)
+    timeout = httpx.Timeout(settings.omie_http_timeout)
+
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as http:
+        async def capture(entry: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+            endpoint = entry["endpoint"]
+            async with semaphore:
+                try:
+                    response = await http.get(endpoint)
+                    text = _normalize_text(response.text)
+                    return endpoint, {
+                        "status": response.status_code,
+                        "content_type": response.headers.get("content-type"),
+                        "hash": _sha(text),
+                        "text": text,
+                    }
+                except Exception as exc:  # radar deve continuar mesmo se 1 serviço falhar
+                    return endpoint, {
+                        "status": None,
+                        "content_type": None,
+                        "hash": None,
+                        "text": "",
+                        "error": str(exc),
+                    }
+
+        pairs = await asyncio.gather(*(capture(entry) for entry in catalog))
+    return dict(pairs)
+
+
+async def capture_snapshot(*, deep: bool = True) -> Snapshot:
     async with httpx.AsyncClient(timeout=settings.omie_http_timeout, follow_redirects=True) as http:
         response = await http.get(settings.omie_service_list_url)
         response.raise_for_status()
+
     normalized = _normalize_text(response.text)
     catalog = serialize_catalog(await fetch_service_catalog())
+    service_pages = await _capture_service_pages(catalog) if deep else {}
+
     return Snapshot(
         captured_at=datetime.now(timezone.utc).isoformat(),
         service_list_hash=_sha(normalized),
         service_list_text=normalized,
         catalog=catalog,
+        service_pages=service_pages,
     )
 
 
@@ -56,6 +92,7 @@ def load_snapshot() -> Snapshot | None:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
+    data.setdefault("service_pages", {})
     return Snapshot(**data)
 
 
@@ -70,9 +107,22 @@ def _catalog_map(snapshot: Snapshot) -> dict[str, dict[str, Any]]:
     return {row["endpoint"]: row for row in snapshot.catalog}
 
 
-async def diff_official_docs(*, persist_new_snapshot: bool = True) -> dict[str, Any]:
+def _text_diff(before: str, after: str, before_name: str, after_name: str, limit: int = 240) -> list[str]:
+    return list(
+        difflib.unified_diff(
+            before.splitlines(),
+            after.splitlines(),
+            fromfile=before_name,
+            tofile=after_name,
+            lineterm="",
+            n=2,
+        )
+    )[:limit]
+
+
+async def diff_official_docs(*, persist_new_snapshot: bool = True, deep: bool = True) -> dict[str, Any]:
     previous = load_snapshot()
-    current = await capture_snapshot()
+    current = await capture_snapshot(deep=deep)
 
     if previous is None:
         if persist_new_snapshot:
@@ -81,6 +131,7 @@ async def diff_official_docs(*, persist_new_snapshot: bool = True) -> dict[str, 
             "status": "baseline_created",
             "captured_at": current.captured_at,
             "service_count": len(current.catalog),
+            "deep_scan": deep,
             "message": "Primeiro snapshot criado; execute novamente para detectar mudanças.",
         }
 
@@ -94,23 +145,45 @@ async def diff_official_docs(*, persist_new_snapshot: bool = True) -> dict[str, 
             changed_entries.append({"before": before[endpoint], "after": after[endpoint]})
 
     text_changed = previous.service_list_hash != current.service_list_hash
-    unified = []
+    service_list_diff = []
     if text_changed:
-        unified = list(
-            difflib.unified_diff(
-                previous.service_list_text.splitlines(),
-                current.service_list_text.splitlines(),
-                fromfile=previous.captured_at,
-                tofile=current.captured_at,
-                lineterm="",
-                n=2,
-            )
-        )[:400]
+        service_list_diff = _text_diff(
+            previous.service_list_text,
+            current.service_list_text,
+            previous.captured_at,
+            current.captured_at,
+            limit=400,
+        )
 
+    changed_pages: list[dict[str, Any]] = []
+    if deep:
+        all_pages = sorted(set(previous.service_pages) | set(current.service_pages))
+        for endpoint in all_pages:
+            old = previous.service_pages.get(endpoint)
+            new = current.service_pages.get(endpoint)
+            if old is None or new is None or old.get("hash") != new.get("hash"):
+                changed_pages.append(
+                    {
+                        "endpoint": endpoint,
+                        "before_hash": old.get("hash") if old else None,
+                        "after_hash": new.get("hash") if new else None,
+                        "before_status": old.get("status") if old else None,
+                        "after_status": new.get("status") if new else None,
+                        "diff_preview": _text_diff(
+                            old.get("text", "") if old else "",
+                            new.get("text", "") if new else "",
+                            f"{endpoint}@before",
+                            f"{endpoint}@after",
+                        ) if old and new else [],
+                    }
+                )
+
+    changed = bool(text_changed or added or removed or changed_entries or changed_pages)
     result = {
-        "status": "changed" if (text_changed or added or removed or changed_entries) else "unchanged",
+        "status": "changed" if changed else "unchanged",
         "previous_captured_at": previous.captured_at,
         "current_captured_at": current.captured_at,
+        "deep_scan": deep,
         "hash_before": previous.service_list_hash,
         "hash_after": current.service_list_hash,
         "text_changed": text_changed,
@@ -119,7 +192,8 @@ async def diff_official_docs(*, persist_new_snapshot: bool = True) -> dict[str, 
         "added_services": added,
         "removed_services": removed,
         "changed_services": changed_entries,
-        "text_diff_preview": unified,
+        "changed_service_pages": changed_pages,
+        "service_list_diff_preview": service_list_diff,
     }
 
     if persist_new_snapshot:
