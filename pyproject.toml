@@ -16,6 +16,9 @@ dependencies = [
   "beautifulsoup4>=4.13.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0"]
+
 [project.scripts]
 omie-mcp = "omie_mcp.server:main"
 
