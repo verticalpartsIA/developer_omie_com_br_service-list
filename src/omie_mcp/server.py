@@ -4,24 +4,22 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .cadastros import (
-    consultar_cliente_fornecedor,
-    listar_clientes_fornecedores_completo,
-    normalizar_cliente_fornecedor,
-)
+from .cadastros import consultar_cliente_fornecedor, listar_clientes_fornecedores_completo, normalizar_cliente_fornecedor
 from .catalog import fetch_service_catalog, inspect_service, serialize_catalog
 from .client import client
 from .compras import (
     consultar_nota_entrada,
     consultar_pedido_compra,
+    consultar_recebimento_nfe,
+    consultar_requisicao_compra,
     listar_notas_entrada,
+    listar_produtos_fornecedor,
+    listar_recebimentos_nfe,
     pesquisar_pedidos_compra,
+    pesquisar_requisicoes_compra,
     produto_ciclo_compra,
 )
-from .financeiro import (
-    consultar_situacao_financeira_conta_pagar,
-    listar_contas_pagar_financeiro,
-)
+from .financeiro import consultar_situacao_financeira_conta_pagar, listar_contas_pagar_financeiro
 from .produtos_estoque import (
     consultar_produto,
     listar_movimentos_estoque,
@@ -29,9 +27,16 @@ from .produtos_estoque import (
     listar_produtos_completo,
     posicao_estoque,
 )
-from .receber import (
-    consultar_situacao_conta_receber,
-    listar_contas_receber_financeiro,
+from .receber import consultar_situacao_conta_receber, listar_contas_receber_financeiro
+from .vendas import (
+    consultar_nfe,
+    consultar_pedido_venda,
+    listar_nfe,
+    listar_pedidos_venda,
+    pedido_venda_ciclo,
+    pedidos_prontos_faturar,
+    status_pedido_venda,
+    validar_pedido_faturamento,
 )
 from .watcher import diff_official_docs
 
@@ -39,14 +44,14 @@ from .watcher import diff_official_docs
 mcp = FastMCP(
     "VerticalParts Omie MCP",
     instructions=(
-        "MCP vivo para acesso amplo ao ERP Omie. Prefira ferramentas semânticas quando existirem; "
-        "use descoberta antes de operações desconhecidas e omie_chamar_api como fallback universal. "
-        "Leituras são permitidas; escritas exigem OMIE_ALLOW_WRITES=true e confirm_write=true. "
-        "Use omie_documentacao_diff para verificar mudanças recentes na documentação oficial."
+        "MCP vivo para o ERP Omie. Prefira ferramentas semânticas quando existirem; use descoberta antes de operações "
+        "desconhecidas e omie_chamar_api como fallback universal. Leituras são permitidas; escritas exigem "
+        "OMIE_ALLOW_WRITES=true e confirm_write=true. Use omie_documentacao_diff para detectar mudanças oficiais."
     ),
 )
 
 
+# Descoberta e fallback universal
 @mcp.tool()
 async def omie_catalogo_servicos() -> list[dict[str, Any]]:
     """Descobre ao vivo os serviços publicados na lista oficial da API Omie."""
@@ -76,22 +81,17 @@ async def omie_documentacao_diff(persistir_snapshot: bool = True) -> dict[str, A
     return await diff_official_docs(persist_new_snapshot=persistir_snapshot)
 
 
-# Cadastros
+# Clientes / fornecedores
 @mcp.tool()
 async def omie_clientes_listar(
     pagina: int = 1,
     registros_por_pagina: int = 50,
     apenas_importado_api: str = "N",
 ) -> dict[str, Any]:
-    """Lista clientes/fornecedores/transportadoras pelo cadastro geral do Omie."""
     return await client.call(
         "geral/clientes",
         "ListarClientes",
-        {
-            "pagina": pagina,
-            "registros_por_pagina": registros_por_pagina,
-            "apenas_importado_api": apenas_importado_api,
-        },
+        {"pagina": pagina, "registros_por_pagina": registros_por_pagina, "apenas_importado_api": apenas_importado_api},
     )
 
 
@@ -103,7 +103,6 @@ async def omie_clientes_fornecedores_listar_completo(
     exibir_caracteristicas: str = "S",
     exibir_obs: str = "S",
 ) -> dict[str, Any]:
-    """Lista cadastro completo para aproximar a visão do relatório real do Omie."""
     return await listar_clientes_fornecedores_completo(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -118,7 +117,6 @@ async def omie_cliente_fornecedor_consultar(
     codigo_cliente_omie: int | None = None,
     codigo_cliente_integracao: str | None = None,
 ) -> dict[str, Any]:
-    """Consulta cliente/fornecedor e retorna visão normalizada."""
     bruto = await consultar_cliente_fornecedor(
         codigo_cliente_omie=codigo_cliente_omie,
         codigo_cliente_integracao=codigo_cliente_integracao,
@@ -126,13 +124,9 @@ async def omie_cliente_fornecedor_consultar(
     return {"bruto": bruto, "visao_normalizada": normalizar_cliente_fornecedor(bruto)}
 
 
-# Produtos e estoque
+# Produtos / estoque
 @mcp.tool()
-async def omie_produtos_listar(
-    pagina: int = 1,
-    registros_por_pagina: int = 50,
-) -> dict[str, Any]:
-    """Lista produtos com visão normalizada e JSON bruto do Omie."""
+async def omie_produtos_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
     return await listar_produtos_completo(pagina=pagina, registros_por_pagina=registros_por_pagina)
 
 
@@ -142,7 +136,6 @@ async def omie_produto_consultar(
     codigo_produto_integracao: str | None = None,
     codigo: str | None = None,
 ) -> dict[str, Any]:
-    """Consulta um produto por código interno, integração ou código visível."""
     return await consultar_produto(
         codigo_produto=codigo_produto,
         codigo_produto_integracao=codigo_produto_integracao,
@@ -156,12 +149,7 @@ async def omie_estoque_posicao(
     codigo_local_estoque: int = 0,
     data: str | None = None,
 ) -> dict[str, Any]:
-    """Consulta posição de estoque de um produto."""
-    return await posicao_estoque(
-        codigo_produto=codigo_produto,
-        codigo_local_estoque=codigo_local_estoque,
-        data=data,
-    )
+    return await posicao_estoque(codigo_produto=codigo_produto, codigo_local_estoque=codigo_local_estoque, data=data)
 
 
 @mcp.tool()
@@ -172,7 +160,6 @@ async def omie_estoque_listar_posicao(
     exibir_todos: str = "N",
     codigo_local_estoque: int = 0,
 ) -> dict[str, Any]:
-    """Lista posição consolidada do estoque."""
     return await listar_posicao_estoque(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -191,7 +178,6 @@ async def omie_estoque_movimentos(
     data_inicial: str | None = None,
     data_final: str | None = None,
 ) -> dict[str, Any]:
-    """Lista movimentos de entrada e saída de estoque."""
     return await listar_movimentos_estoque(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -205,12 +191,7 @@ async def omie_estoque_movimentos(
 # Financeiro
 @mcp.tool()
 async def omie_contas_pagar_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
-    """Lista contas a pagar pelo endpoint cadastral de títulos."""
-    return await client.call(
-        "financas/contapagar",
-        "ListarContasPagar",
-        {"pagina": pagina, "registros_por_pagina": registros_por_pagina},
-    )
+    return await client.call("financas/contapagar", "ListarContasPagar", {"pagina": pagina, "registros_por_pagina": registros_por_pagina})
 
 
 @mcp.tool()
@@ -224,7 +205,6 @@ async def omie_contas_pagar_financeiro(
     vencimento_de: str | None = None,
     vencimento_ate: str | None = None,
 ) -> dict[str, Any]:
-    """Lista contas a pagar com valor pago e saldo em aberto por Movimentos Financeiros."""
     return await listar_contas_pagar_financeiro(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -239,18 +219,12 @@ async def omie_contas_pagar_financeiro(
 
 @mcp.tool()
 async def omie_conta_pagar_situacao_financeira(codigo_lancamento_omie: int) -> dict[str, Any]:
-    """Retorna Valor Pago e Valor a Pagar de um título."""
     return await consultar_situacao_financeira_conta_pagar(codigo_lancamento_omie)
 
 
 @mcp.tool()
 async def omie_contas_receber_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
-    """Lista contas a receber pelo endpoint cadastral de títulos."""
-    return await client.call(
-        "financas/contareceber",
-        "ListarContasReceber",
-        {"pagina": pagina, "registros_por_pagina": registros_por_pagina},
-    )
+    return await client.call("financas/contareceber", "ListarContasReceber", {"pagina": pagina, "registros_por_pagina": registros_por_pagina})
 
 
 @mcp.tool()
@@ -264,7 +238,6 @@ async def omie_contas_receber_financeiro(
     vencimento_de: str | None = None,
     vencimento_ate: str | None = None,
 ) -> dict[str, Any]:
-    """Lista contas a receber com valor recebido e saldo em aberto."""
     return await listar_contas_receber_financeiro(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -279,11 +252,47 @@ async def omie_contas_receber_financeiro(
 
 @mcp.tool()
 async def omie_conta_receber_situacao_financeira(codigo_lancamento_omie: int) -> dict[str, Any]:
-    """Retorna Valor Recebido e Valor a Receber de um título."""
     return await consultar_situacao_conta_receber(codigo_lancamento_omie)
 
 
-# Compras e notas de entrada
+# Compras
+@mcp.tool()
+async def omie_produtos_fornecedor_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 10,
+    apenas_importado_api: str = "N",
+) -> dict[str, Any]:
+    """Lista a relação oficial Produto x Fornecedor."""
+    return await listar_produtos_fornecedor(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        apenas_importado_api=apenas_importado_api,
+    )
+
+
+@mcp.tool()
+async def omie_requisicoes_compra_pesquisar(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+    data_de: str | None = None,
+    data_ate: str | None = None,
+) -> dict[str, Any]:
+    return await pesquisar_requisicoes_compra(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        data_de=data_de,
+        data_ate=data_ate,
+    )
+
+
+@mcp.tool()
+async def omie_requisicao_compra_consultar(
+    codigo_requisicao: int | None = None,
+    codigo_integracao: str | None = None,
+) -> dict[str, Any]:
+    return await consultar_requisicao_compra(codigo_requisicao=codigo_requisicao, codigo_integracao=codigo_integracao)
+
+
 @mcp.tool()
 async def omie_pedidos_compra_pesquisar(
     pagina: int = 1,
@@ -298,7 +307,6 @@ async def omie_pedidos_compra_pesquisar(
     data_inicial: str | None = None,
     data_final: str | None = None,
 ) -> dict[str, Any]:
-    """Pesquisa pedidos de compra usando o método oficial PesquisarPedCompra."""
     return await pesquisar_pedidos_compra(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
@@ -320,17 +328,11 @@ async def omie_pedido_compra_consultar(
     codigo_integracao: str | None = None,
     numero: str | None = None,
 ) -> dict[str, Any]:
-    """Consulta um pedido de compra."""
-    return await consultar_pedido_compra(
-        codigo_pedido=codigo_pedido,
-        codigo_integracao=codigo_integracao,
-        numero=numero,
-    )
+    return await consultar_pedido_compra(codigo_pedido=codigo_pedido, codigo_integracao=codigo_integracao, numero=numero)
 
 
 @mcp.tool()
 async def omie_notas_entrada_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
-    """Lista notas de entrada."""
     return await listar_notas_entrada(pagina=pagina, registros_por_pagina=registros_por_pagina)
 
 
@@ -339,36 +341,88 @@ async def omie_nota_entrada_consultar(
     codigo_nota_entrada: int | None = None,
     codigo_integracao: str | None = None,
 ) -> dict[str, Any]:
-    """Consulta uma nota de entrada."""
-    return await consultar_nota_entrada(
-        codigo_nota_entrada=codigo_nota_entrada,
-        codigo_integracao=codigo_integracao,
-    )
+    return await consultar_nota_entrada(codigo_nota_entrada=codigo_nota_entrada, codigo_integracao=codigo_integracao)
 
 
 @mcp.tool()
-async def omie_produto_ciclo_compra(
-    codigo_produto: int,
-    pagina: int = 1,
-    registros_por_pagina: int = 50,
+async def omie_recebimentos_nfe_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
+    return await listar_recebimentos_nfe(pagina=pagina, registros_por_pagina=registros_por_pagina)
+
+
+@mcp.tool()
+async def omie_recebimento_nfe_consultar(
+    id_recebimento: int | None = None,
+    chave_nfe: str | None = None,
 ) -> dict[str, Any]:
-    """Visão composta de produto + estoque + pesquisa de pedidos de compra."""
-    return await produto_ciclo_compra(
-        codigo_produto=codigo_produto,
+    return await consultar_recebimento_nfe(id_recebimento=id_recebimento, chave_nfe=chave_nfe)
+
+
+@mcp.tool()
+async def omie_produto_ciclo_compra(codigo_produto: int, pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
+    return await produto_ciclo_compra(codigo_produto=codigo_produto, pagina=pagina, registros_por_pagina=registros_por_pagina)
+
+
+# Vendas / faturamento / NF-e
+@mcp.tool()
+async def omie_pedidos_venda_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 100,
+    apenas_importado_api: str = "N",
+) -> dict[str, Any]:
+    return await listar_pedidos_venda(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
+        apenas_importado_api=apenas_importado_api,
     )
 
 
-# Vendas: cobertura tipada inicial + fallback universal para o restante.
 @mcp.tool()
-async def omie_pedidos_venda_listar(pagina: int = 1, registros_por_pagina: int = 50) -> dict[str, Any]:
-    """Lista pedidos de venda pelo serviço oficial de pedidos."""
-    return await client.call(
-        "produtos/pedido",
-        "ListarPedidos",
-        {"pagina": pagina, "registros_por_pagina": registros_por_pagina},
-    )
+async def omie_pedido_venda_consultar(
+    codigo_pedido: int | None = None,
+    codigo_integracao: str | None = None,
+) -> dict[str, Any]:
+    return await consultar_pedido_venda(codigo_pedido=codigo_pedido, codigo_integracao=codigo_integracao)
+
+
+@mcp.tool()
+async def omie_pedido_venda_status(
+    codigo_pedido: int | None = None,
+    codigo_integracao: str | None = None,
+) -> dict[str, Any]:
+    return await status_pedido_venda(codigo_pedido=codigo_pedido, codigo_integracao=codigo_integracao)
+
+
+@mcp.tool()
+async def omie_pedidos_prontos_faturar(etapa: str = "50") -> dict[str, Any]:
+    return await pedidos_prontos_faturar(etapa=etapa)
+
+
+@mcp.tool()
+async def omie_pedido_validar_faturamento(
+    codigo_pedido: int | None = None,
+    codigo_integracao: str | None = None,
+) -> dict[str, Any]:
+    """Valida um pedido para faturamento sem faturá-lo."""
+    return await validar_pedido_faturamento(codigo_pedido=codigo_pedido, codigo_integracao=codigo_integracao)
+
+
+@mcp.tool()
+async def omie_nfe_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 20,
+    ordenar_por: str = "CODIGO",
+) -> dict[str, Any]:
+    return await listar_nfe(pagina=pagina, registros_por_pagina=registros_por_pagina, ordenar_por=ordenar_por)
+
+
+@mcp.tool()
+async def omie_nfe_consultar(codigo_nfe: int | None = None, numero_nfe: str | None = None) -> dict[str, Any]:
+    return await consultar_nfe(codigo_nfe=codigo_nfe, numero_nfe=numero_nfe)
+
+
+@mcp.tool()
+async def omie_pedido_venda_ciclo(codigo_pedido: int) -> dict[str, Any]:
+    return await pedido_venda_ciclo(codigo_pedido=codigo_pedido)
 
 
 def main() -> None:
