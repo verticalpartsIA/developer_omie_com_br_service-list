@@ -6,12 +6,6 @@ from .client import client
 
 
 def normalizar_movimento_conta_receber(movimento: dict[str, Any]) -> dict[str, Any]:
-    """Normaliza um movimento financeiro Omie para a visão de Contas a Receber.
-
-    A fonte financeira realizada é /financas/mf/.
-    `resumo.nValPago` representa o total recebido/baixado e
-    `resumo.nValAberto` o saldo ainda em aberto.
-    """
     detalhes = movimento.get("detalhes") or {}
     resumo = movimento.get("resumo") or {}
 
@@ -71,7 +65,6 @@ async def listar_contas_receber_financeiro(
     recebimento_de: str | None = None,
     recebimento_ate: str | None = None,
 ) -> dict[str, Any]:
-    """Lista Contas a Receber usando Movimentos Financeiros como fonte do realizado."""
     param: dict[str, Any] = {
         "nPagina": pagina,
         "nRegPorPagina": registros_por_pagina,
@@ -107,8 +100,44 @@ async def listar_contas_receber_financeiro(
     }
 
 
+async def listar_contas_receber_financeiro_todas(
+    *,
+    registros_por_pagina: int = 100,
+    max_paginas: int = 100,
+    **filtros: Any,
+) -> dict[str, Any]:
+    """Percorre páginas de Contas a Receber até completar ou atingir o limite de segurança."""
+    primeira = await listar_contas_receber_financeiro(
+        pagina=1,
+        registros_por_pagina=registros_por_pagina,
+        **filtros,
+    )
+    total_paginas = int(primeira.get("total_paginas") or 1)
+    alvo = min(total_paginas, max_paginas)
+    contas = list(primeira.get("contas") or [])
+
+    for pagina in range(2, alvo + 1):
+        atual = await listar_contas_receber_financeiro(
+            pagina=pagina,
+            registros_por_pagina=registros_por_pagina,
+            **filtros,
+        )
+        contas.extend(atual.get("contas") or [])
+
+    return {
+        "completo": total_paginas <= max_paginas,
+        "paginas_lidas": alvo,
+        "total_paginas": total_paginas,
+        "total_registros_declarado": primeira.get("total_registros"),
+        "total_itens_coletados": len(contas),
+        "contas": contas,
+        "fonte": primeira.get("fonte"),
+        "regra_valor_recebido": primeira.get("regra_valor_recebido"),
+        "regra_valor_a_receber": primeira.get("regra_valor_a_receber"),
+    }
+
+
 async def consultar_situacao_conta_receber(codigo_lancamento_omie: int) -> dict[str, Any]:
-    """Retorna a situação financeira oficial de um único título a receber."""
     response = await client.call(
         "financas/mf",
         "ListarMovimentos",
