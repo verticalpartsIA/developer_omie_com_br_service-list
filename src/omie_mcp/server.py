@@ -6,6 +6,10 @@ from mcp.server.fastmcp import FastMCP
 
 from .catalog import fetch_service_catalog, inspect_service, serialize_catalog
 from .client import client
+from .financeiro import (
+    consultar_situacao_financeira_conta_pagar,
+    listar_contas_pagar_financeiro,
+)
 from .watcher import diff_official_docs
 
 
@@ -14,6 +18,8 @@ mcp = FastMCP(
     instructions=(
         "MCP para acesso amplo ao ERP Omie. Prefira ferramentas de descoberta antes de chamar operações desconhecidas. "
         "Leituras são permitidas; escritas exigem OMIE_ALLOW_WRITES=true e confirm_write=true. "
+        "Para perguntas sobre Valor Pago e Valor a Pagar em Contas a Pagar, prefira as ferramentas financeiras baseadas em /financas/mf/, "
+        "pois o Omie expõe nValPago e nValAberto no resumo dos Movimentos Financeiros. "
         "Use omie_documentacao_diff para verificar mudanças recentes na documentação oficial."
     ),
 )
@@ -94,12 +100,59 @@ async def omie_contas_pagar_listar(
     pagina: int = 1,
     registros_por_pagina: int = 50,
 ) -> dict[str, Any]:
-    """Lista contas a pagar."""
+    """Lista o cadastro bruto de Contas a Pagar.
+
+    Para perguntas sobre valores realizados, principalmente Valor Pago e Valor a Pagar,
+    use `omie_contas_pagar_financeiro` ou `omie_conta_pagar_situacao_financeira`.
+    """
     return await client.call(
         "financas/contapagar",
         "ListarContasPagar",
         {"pagina": pagina, "registros_por_pagina": registros_por_pagina},
     )
+
+
+@mcp.tool()
+async def omie_contas_pagar_financeiro(
+    pagina: int = 1,
+    registros_por_pagina: int = 100,
+    status: str | None = None,
+    codigo_fornecedor: int | None = None,
+    cpf_cnpj: str | None = None,
+    codigo_projeto: int | None = None,
+    vencimento_de: str | None = None,
+    vencimento_ate: str | None = None,
+    pagamento_de: str | None = None,
+    pagamento_ate: str | None = None,
+) -> dict[str, Any]:
+    """Lista Contas a Pagar com situação financeira real do Omie.
+
+    É a ferramenta preferencial para responder quanto já foi pago e quanto ainda falta pagar.
+    Usa /financas/mf/ ListarMovimentos e expõe diretamente:
+    - `valor_pago` <- `resumo.nValPago`
+    - `valor_a_pagar` <- `resumo.nValAberto`
+    - `valor_liquido` <- `resumo.nValLiquido`
+    - desconto, juros, multa, situação e data de pagamento.
+    Datas seguem o formato dd/mm/aaaa usado pelo Omie.
+    """
+    return await listar_contas_pagar_financeiro(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        status=status,
+        codigo_fornecedor=codigo_fornecedor,
+        cpf_cnpj=cpf_cnpj,
+        codigo_projeto=codigo_projeto,
+        vencimento_de=vencimento_de,
+        vencimento_ate=vencimento_ate,
+        pagamento_de=pagamento_de,
+        pagamento_ate=pagamento_ate,
+    )
+
+
+@mcp.tool()
+async def omie_conta_pagar_situacao_financeira(codigo_lancamento_omie: int) -> dict[str, Any]:
+    """Consulta Valor Pago, Valor a Pagar e demais dados financeiros de um título específico."""
+    return await consultar_situacao_financeira_conta_pagar(codigo_lancamento_omie)
 
 
 @mcp.tool()
