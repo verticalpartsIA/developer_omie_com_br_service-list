@@ -1,0 +1,42 @@
+name: Omie Docs Drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Restore previous documentation snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .omie_mcp_state
+          key: omie-docs-snapshot-${{ github.run_id }}
+          restore-keys: |
+            omie-docs-snapshot-
+      - name: Install
+        run: pip install -e .
+      - name: Scan official Omie documentation
+        run: python -m omie_mcp.drift_cli
+      - name: Upload drift report
+        uses: actions/upload-artifact@v4
+        with:
+          name: omie-docs-diff-${{ github.run_id }}
+          path: omie-docs-diff.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Save current documentation snapshot
+        uses: actions/cache/save@v4
+        with:
+          path: .omie_mcp_state
+          key: omie-docs-snapshot-${{ github.run_id }}
