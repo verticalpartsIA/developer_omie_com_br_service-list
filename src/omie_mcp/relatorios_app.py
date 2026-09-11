@@ -3,7 +3,35 @@ from __future__ import annotations
 from typing import Any
 
 from .app import mcp
+from .categorias import consultar_categoria_semantica, listar_categorias_semanticas
 from .relatorios_completos import contas_pagar_relatorio_completo, contas_receber_relatorio_completo
+
+
+@mcp.tool()
+async def omie_categorias_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 100,
+    apenas_ativas: bool = False,
+    tipo: str | None = None,
+    descricao: str | None = None,
+) -> dict[str, Any]:
+    """Lista categorias do Omie com situação, tipo, hierarquia e vínculo com a Conta do DRE.
+
+    `tipo` aceita R (Receita) ou D (Despesa). Quando `apenas_ativas=true`, usa o filtro oficial do Omie.
+    """
+    return await listar_categorias_semanticas(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        apenas_ativas=apenas_ativas,
+        tipo=tipo,
+        descricao=descricao,
+    )
+
+
+@mcp.tool()
+async def omie_categoria_consultar(codigo: str) -> dict[str, Any]:
+    """Consulta uma categoria específica e devolve seus dados gerenciais, inclusive DRE quando disponível."""
+    return await consultar_categoria_semantica(codigo)
 
 
 @mcp.tool()
