@@ -9,7 +9,7 @@ description = "MCP vivo para o ERP Omie: acesso completo, catálogo dinâmico e 
 readme = "MCP_OMIE.md"
 requires-python = ">=3.11"
 dependencies = [
-  "mcp>=1.10.0",
+  "mcp>=1.10.0,<2",
   "httpx>=0.28.1",
   "pydantic>=2.11.0",
   "pydantic-settings>=2.9.0",
