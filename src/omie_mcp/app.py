@@ -4,6 +4,12 @@ from typing import Any
 
 from .crm import consultar_oportunidade, listar_oportunidades, listar_tarefas_crm, oportunidade_360, resumo_oportunidades
 from .fiscal import documento_fiscal_por_chave, listar_documentos_fiscais, resumo_contador
+from .reforma_tributaria import (
+    listar_classificacoes_ibs_cbs,
+    listar_cst_ibs_cbs,
+    listar_indicadores_operacao,
+    mapa_reforma_tributaria,
+)
 from .server import mcp
 from .servicos import consultar_os, consultar_servico, listar_contratos, listar_nfse, listar_os, listar_servicos, os_ciclo_servico, status_os
 from .transacoes import ciclo_recebimento_compra_financeiro, ciclo_venda_financeiro
@@ -18,7 +24,6 @@ async def omie_cliente_360(
     pagina_pedidos: int = 1,
     registros_pedidos: int = 50,
 ) -> dict[str, Any]:
-    """Visão 360 de cliente: cadastro, pedidos de venda e Contas a Receber."""
     return await cliente_360(
         codigo_cliente_omie,
         pagina_financeiro=pagina_financeiro,
@@ -34,7 +39,6 @@ async def omie_fornecedor_360(
     pagina_financeiro: int = 1,
     registros_financeiro: int = 100,
 ) -> dict[str, Any]:
-    """Visão 360 de fornecedor: cadastro e exposição financeira em Contas a Pagar."""
     return await fornecedor_360(
         codigo_fornecedor_omie,
         pagina_financeiro=pagina_financeiro,
@@ -194,6 +198,59 @@ async def omie_documento_fiscal_por_chave(chave: str, modelo: str = "55", operac
 @mcp.tool()
 async def omie_resumo_contador(data_inicio: str, data_fim: str) -> dict[str, Any]:
     return await resumo_contador(data_inicio=data_inicio, data_fim=data_fim)
+
+
+# Reforma Tributária IBS/CBS
+@mcp.tool()
+async def omie_ibs_cbs_cst_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+    descricao: str | None = None,
+) -> dict[str, Any]:
+    return await listar_cst_ibs_cbs(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        descricao=descricao,
+    )
+
+
+@mcp.tool()
+async def omie_ibs_cbs_classificacoes_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+    descricao: str | None = None,
+    cst: str | None = None,
+) -> dict[str, Any]:
+    return await listar_classificacoes_ibs_cbs(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        descricao=descricao,
+        cst=cst,
+    )
+
+
+@mcp.tool()
+async def omie_indicadores_operacao_listar(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+    descricao: str | None = None,
+) -> dict[str, Any]:
+    return await listar_indicadores_operacao(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        descricao=descricao,
+    )
+
+
+@mcp.tool()
+async def omie_reforma_tributaria_mapa(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+) -> dict[str, Any]:
+    return await mapa_reforma_tributaria(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+    )
 
 
 def main() -> None:
