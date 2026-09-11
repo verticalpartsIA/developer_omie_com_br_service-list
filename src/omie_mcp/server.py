@@ -15,6 +15,10 @@ from .financeiro import (
     consultar_situacao_conta_pagar,
     listar_contas_pagar_financeiro,
 )
+from .receber import (
+    consultar_situacao_conta_receber,
+    listar_contas_receber_financeiro,
+)
 from .watcher import diff_official_docs
 
 
@@ -136,7 +140,7 @@ async def omie_contas_pagar_listar(
     pagina: int = 1,
     registros_por_pagina: int = 50,
 ) -> dict[str, Any]:
-    """Lista contas a pagar."""
+    """Lista contas a pagar pelo endpoint cadastral de títulos."""
     return await client.call(
         "financas/contapagar",
         "ListarContasPagar",
@@ -148,13 +152,23 @@ async def omie_contas_pagar_listar(
 async def omie_contas_pagar_financeiro(
     pagina: int = 1,
     registros_por_pagina: int = 50,
-    codigo_cliente_omie: int | None = None,
+    status: str | None = None,
+    codigo_fornecedor: int | None = None,
+    cpf_cnpj: str | None = None,
+    codigo_projeto: int | None = None,
+    vencimento_de: str | None = None,
+    vencimento_ate: str | None = None,
 ) -> dict[str, Any]:
-    """Lista contas a pagar com visão financeira real: valor pago e valor em aberto."""
+    """Lista contas a pagar com valor pago e saldo em aberto vindos de Movimentos Financeiros."""
     return await listar_contas_pagar_financeiro(
         pagina=pagina,
         registros_por_pagina=registros_por_pagina,
-        codigo_cliente_omie=codigo_cliente_omie,
+        status=status,
+        codigo_fornecedor=codigo_fornecedor,
+        cpf_cnpj=cpf_cnpj,
+        codigo_projeto=codigo_projeto,
+        vencimento_de=vencimento_de,
+        vencimento_ate=vencimento_ate,
     )
 
 
@@ -169,12 +183,42 @@ async def omie_contas_receber_listar(
     pagina: int = 1,
     registros_por_pagina: int = 50,
 ) -> dict[str, Any]:
-    """Lista contas a receber."""
+    """Lista contas a receber pelo endpoint cadastral de títulos."""
     return await client.call(
         "financas/contareceber",
         "ListarContasReceber",
         {"pagina": pagina, "registros_por_pagina": registros_por_pagina},
     )
+
+
+@mcp.tool()
+async def omie_contas_receber_financeiro(
+    pagina: int = 1,
+    registros_por_pagina: int = 50,
+    status: str | None = None,
+    codigo_cliente: int | None = None,
+    cpf_cnpj: str | None = None,
+    codigo_projeto: int | None = None,
+    vencimento_de: str | None = None,
+    vencimento_ate: str | None = None,
+) -> dict[str, Any]:
+    """Lista contas a receber com valor recebido e saldo em aberto vindos de Movimentos Financeiros."""
+    return await listar_contas_receber_financeiro(
+        pagina=pagina,
+        registros_por_pagina=registros_por_pagina,
+        status=status,
+        codigo_cliente=codigo_cliente,
+        cpf_cnpj=cpf_cnpj,
+        codigo_projeto=codigo_projeto,
+        vencimento_de=vencimento_de,
+        vencimento_ate=vencimento_ate,
+    )
+
+
+@mcp.tool()
+async def omie_conta_receber_situacao_financeira(codigo_lancamento_omie: int) -> dict[str, Any]:
+    """Consulta um título a receber e retorna valor recebido, valor em aberto e componentes financeiros."""
+    return await consultar_situacao_conta_receber(codigo_lancamento_omie)
 
 
 @mcp.tool()
