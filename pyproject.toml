@@ -17,7 +17,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0"]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+]
 
 [project.scripts]
 omie-mcp = "omie_mcp.app:main"
@@ -27,3 +30,4 @@ packages = ["src/omie_mcp"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+asyncio_mode = "auto"
