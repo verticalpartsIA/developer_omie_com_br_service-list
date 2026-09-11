@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .server import mcp
+from .transacoes import ciclo_recebimento_compra_financeiro, ciclo_venda_financeiro
 from .visoes360 import cliente_360, fornecedor_360
 
 
@@ -36,6 +37,21 @@ async def omie_fornecedor_360(
         pagina_financeiro=pagina_financeiro,
         registros_financeiro=registros_financeiro,
     )
+
+
+@mcp.tool()
+async def omie_ciclo_venda_financeiro(codigo_pedido: int) -> dict[str, Any]:
+    """Liga Pedido de Venda, NF-e e Contas a Receber usando nCodOS como chave oficial."""
+    return await ciclo_venda_financeiro(codigo_pedido)
+
+
+@mcp.tool()
+async def omie_ciclo_recebimento_compra_financeiro(
+    id_recebimento: int | None = None,
+    chave_nfe: str | None = None,
+) -> dict[str, Any]:
+    """Liga Recebimento de NF-e e Contas a Pagar pela chave fiscal do fornecedor."""
+    return await ciclo_recebimento_compra_financeiro(id_recebimento=id_recebimento, chave_nfe=chave_nfe)
 
 
 def main() -> None:
