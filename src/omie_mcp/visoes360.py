@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .cadastros import consultar_cliente_fornecedor, normalizar_cliente_fornecedor
+from .categorias import resolver_categorias_dos_titulos
 from .client import OmieError, client
 from .financeiro import listar_contas_pagar_financeiro
 from .receber import listar_contas_receber_financeiro
@@ -50,6 +51,42 @@ def _erro_sem_registros(exc: Exception) -> bool:
     return any(marcador in texto for marcador in marcadores)
 
 
+def _categoria_resumida(categoria: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not categoria:
+        return None
+    if categoria.get("erro_enriquecimento"):
+        return {
+            "codigo": categoria.get("codigo"),
+            "encontrado": False,
+            "erro_enriquecimento": categoria.get("erro_enriquecimento"),
+        }
+    return {
+        "codigo": categoria.get("codigo"),
+        "descricao": categoria.get("descricao"),
+        "situacao": categoria.get("situacao"),
+        "tipo_movimento": categoria.get("tipo_movimento"),
+        "natureza": categoria.get("natureza"),
+        "categoria_superior": categoria.get("categoria_superior"),
+        "codigo_dre": categoria.get("codigo_dre"),
+        "conta_dre": categoria.get("conta_dre"),
+        "dre": categoria.get("dre"),
+        "id_conta_contabil": categoria.get("id_conta_contabil"),
+        "tag_conta_contabil": categoria.get("tag_conta_contabil"),
+    }
+
+
+def _enriquecer_contas_com_categorias(
+    contas: list[dict[str, Any]],
+    categorias: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    resultado: list[dict[str, Any]] = []
+    for conta in contas:
+        codigo = conta.get("categoria_codigo")
+        categoria = categorias.get(str(codigo)) if codigo not in (None, "") else None
+        resultado.append({**conta, "categoria": _categoria_resumida(categoria)})
+    return resultado
+
+
 async def cliente_360(
     codigo_cliente_omie: int,
     *,
@@ -58,11 +95,7 @@ async def cliente_360(
     pagina_pedidos: int = 1,
     registros_pedidos: int = 50,
 ) -> dict[str, Any]:
-    """Visão 360 de cliente: cadastro + pedidos de venda + Contas a Receber.
-
-    O vínculo é feito pelas chaves oficiais do Omie. A listagem de pedidos usa
-    `filtrar_por_cliente`, documentado em `pvpListarRequest`.
-    """
+    """Visão 360 de cliente: cadastro + pedidos de venda + Contas a Receber."""
     cadastro_bruto = await consultar_cliente_fornecedor(codigo_cliente_omie=codigo_cliente_omie)
     cadastro = normalizar_cliente_fornecedor(cadastro_bruto)
 
@@ -83,6 +116,8 @@ async def cliente_360(
             "mensagem": "Nenhum título de Contas a Receber encontrado para o cliente.",
         }
     contas = financeiro.get("contas") or []
+    categorias = await resolver_categorias_dos_titulos(contas)
+    contas_enriquecidas = _enriquecer_contas_com_categorias(contas, categorias)
 
     pedidos_ausentes = False
     try:
@@ -117,9 +152,10 @@ async def cliente_360(
         "cadastro": cadastro,
         "financeiro": {
             "resumo": _resumo_financeiro(contas, pago="valor_recebido", aberto="valor_a_receber"),
-            "contas_receber": contas,
+            "contas_receber": contas_enriquecidas,
             "fonte": financeiro.get("fonte"),
             "sem_registros": financeiro_ausente,
+            "categorias_resolvidas": len(categorias),
         },
         "vendas": {
             "pedidos": pedidos,
@@ -131,6 +167,7 @@ async def cliente_360(
             "pedido.cabecalho.codigo_cliente",
             "movimento.detalhes.nCodOS / cNumOS para pedido/OS quando presente",
             "movimento.detalhes.nCodCtr / cNumCtr para contrato quando presente",
+            "movimento.categoria_codigo -> Omie /geral/categorias/ ConsultarCategoria",
         ],
     }
 
@@ -141,12 +178,7 @@ async def fornecedor_360(
     pagina_financeiro: int = 1,
     registros_financeiro: int = 100,
 ) -> dict[str, Any]:
-    """Visão 360 de fornecedor: cadastro + exposição em Contas a Pagar.
-
-    Pedidos de compra não são varridos indiscriminadamente aqui porque o método
-    `PesquisarPedCompra` não publica filtro por fornecedor. O MCP não deve fingir
-    uma correlação que a API não oferece de forma seletiva.
-    """
+    """Visão 360 de fornecedor: cadastro + exposição em Contas a Pagar."""
     cadastro_bruto = await consultar_cliente_fornecedor(codigo_cliente_omie=codigo_fornecedor_omie)
     cadastro = normalizar_cliente_fornecedor(cadastro_bruto)
 
@@ -167,6 +199,8 @@ async def fornecedor_360(
             "mensagem": "Nenhum título de Contas a Pagar encontrado para o fornecedor.",
         }
     contas = financeiro.get("contas") or []
+    categorias = await resolver_categorias_dos_titulos(contas)
+    contas_enriquecidas = _enriquecer_contas_com_categorias(contas, categorias)
 
     return {
         "tipo_visao": "FORNECEDOR_360",
@@ -175,9 +209,10 @@ async def fornecedor_360(
         "cadastro": cadastro,
         "financeiro": {
             "resumo": _resumo_financeiro(contas, pago="valor_pago", aberto="valor_a_pagar"),
-            "contas_pagar": contas,
+            "contas_pagar": contas_enriquecidas,
             "fonte": financeiro.get("fonte"),
             "sem_registros": financeiro_ausente,
+            "categorias_resolvidas": len(categorias),
         },
         "compras": {
             "correlacao_disponivel": [
@@ -194,5 +229,6 @@ async def fornecedor_360(
             "codigo_cliente_omie / detalhes.nCodCliente",
             "pedido_compra.cabecalho_consulta.nCodFor",
             "produto_fornecedor.cadastros[].nCodForn",
+            "movimento.categoria_codigo -> Omie /geral/categorias/ ConsultarCategoria",
         ],
     }
