@@ -6,14 +6,6 @@ from .client import client
 
 
 def normalizar_movimento_conta_pagar(movimento: dict[str, Any]) -> dict[str, Any]:
-    """Converte um movimento financeiro Omie em uma visão amigável de Contas a Pagar.
-
-    O endpoint /financas/mf/ é a fonte oficial para situação financeira realizada do título.
-    Em especial:
-      resumo.nValPago   -> valor total pago
-      resumo.nValAberto -> valor total ainda em aberto
-      resumo.nValLiquido -> valor líquido segundo o Omie
-    """
     detalhes = movimento.get("detalhes") or {}
     resumo = movimento.get("resumo") or {}
 
@@ -70,10 +62,6 @@ async def listar_contas_pagar_financeiro(
     pagamento_de: str | None = None,
     pagamento_ate: str | None = None,
 ) -> dict[str, Any]:
-    """Lista Contas a Pagar usando Movimentos Financeiros como fonte do realizado.
-
-    Essa visão é a indicada quando a pergunta envolver quanto foi pago ou quanto ainda falta pagar.
-    """
     param: dict[str, Any] = {
         "nPagina": pagina,
         "nRegPorPagina": registros_por_pagina,
@@ -109,8 +97,44 @@ async def listar_contas_pagar_financeiro(
     }
 
 
+async def listar_contas_pagar_financeiro_todas(
+    *,
+    registros_por_pagina: int = 100,
+    max_paginas: int = 100,
+    **filtros: Any,
+) -> dict[str, Any]:
+    """Percorre páginas de Contas a Pagar até completar ou atingir o limite de segurança."""
+    primeira = await listar_contas_pagar_financeiro(
+        pagina=1,
+        registros_por_pagina=registros_por_pagina,
+        **filtros,
+    )
+    total_paginas = int(primeira.get("total_paginas") or 1)
+    alvo = min(total_paginas, max_paginas)
+    contas = list(primeira.get("contas") or [])
+
+    for pagina in range(2, alvo + 1):
+        atual = await listar_contas_pagar_financeiro(
+            pagina=pagina,
+            registros_por_pagina=registros_por_pagina,
+            **filtros,
+        )
+        contas.extend(atual.get("contas") or [])
+
+    return {
+        "completo": total_paginas <= max_paginas,
+        "paginas_lidas": alvo,
+        "total_paginas": total_paginas,
+        "total_registros_declarado": primeira.get("total_registros"),
+        "total_itens_coletados": len(contas),
+        "contas": contas,
+        "fonte": primeira.get("fonte"),
+        "regra_valor_pago": primeira.get("regra_valor_pago"),
+        "regra_valor_a_pagar": primeira.get("regra_valor_a_pagar"),
+    }
+
+
 async def consultar_situacao_financeira_conta_pagar(codigo_lancamento_omie: int) -> dict[str, Any]:
-    """Retorna a situação financeira oficial de um único título a pagar."""
     response = await client.call(
         "financas/mf",
         "ListarMovimentos",
