@@ -12,7 +12,7 @@ from .cadastros import (
 from .catalog import fetch_service_catalog, inspect_service, serialize_catalog
 from .client import client
 from .financeiro import (
-    consultar_situacao_conta_pagar,
+    consultar_situacao_financeira_conta_pagar,
     listar_contas_pagar_financeiro,
 )
 from .receber import (
@@ -175,7 +175,7 @@ async def omie_contas_pagar_financeiro(
 @mcp.tool()
 async def omie_conta_pagar_situacao_financeira(codigo_lancamento_omie: int) -> dict[str, Any]:
     """Consulta um título a pagar e retorna valor pago, valor em aberto e demais componentes financeiros."""
-    return await consultar_situacao_conta_pagar(codigo_lancamento_omie)
+    return await consultar_situacao_financeira_conta_pagar(codigo_lancamento_omie)
 
 
 @mcp.tool()
