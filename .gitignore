@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Segredos
+.env
+.env.*
+!.env.example
+
+# Estado local do radar Omie
+.omie_mcp_state/
+
+# IDE/SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
