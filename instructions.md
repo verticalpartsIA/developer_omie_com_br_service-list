@@ -3,15 +3,13 @@
 > Este arquivo é o **ponto de entrada** para qualquer IA/LLM que precise entender o que este repositório oferece.
 > Se você (IA) chegou aqui a partir de um link, leia este arquivo primeiro, depois o [README.md](README.md), depois a issue do módulo relevante.
 
-## MCP Omie — leitura obrigatória e isolamento de escopo
+## MCP Omie — leitura obrigatória
 
 Se a tarefa envolver **Omie ERP ou o MCP Omie da VerticalParts**, leia primeiro:
 
 [`omie-mcp-rag/RAG_MCP_OMIE_VERTICALPARTS.md`](omie-mcp-rag/RAG_MCP_OMIE_VERTICALPARTS.md)
 
 Esse documento é o RAG canônico do MCP Omie e contém SPEC, SDD, regras de retrieval, segurança, gaps, política de tool use e camada fine-tuning-ready.
-
-Regra de isolamento: para tarefas exclusivamente Omie, **não misture** WhatsApp, Evolution API, Telegram ou outros MCPs. Os arquivos de mensageria existentes neste repositório são históricos e só devem ser recuperados se o usuário pedir explicitamente uma integração entre Omie e outro serviço.
 
 ## O que é este repositório
 Espelho em Supabase (PostgreSQL) de todas as entidades expostas pelas APIs do **Omie ERP** (https://developer.omie.com.br/service-list/), usado pela **VerticalParts** para consultas analíticas, integrações internas (ex.: VP Pós-Venda 360°, vpsistema) e dashboards — sem depender de chamadas diretas à API do Omie a cada requisição.
