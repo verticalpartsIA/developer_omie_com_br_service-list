@@ -4,6 +4,7 @@ import asyncio
 import difflib
 import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,10 @@ import httpx
 
 from .catalog import fetch_service_catalog, serialize_catalog
 from .config import settings
+
+# O servidor do Omie gera um nonce de CSP novo a cada resposta HTTP (mesmo conteúdo,
+# mesma página) — sem isso, TODA página aparenta ter mudado em TODA execução do radar.
+_VOLATILE_NONCE_RE = re.compile(r'nonce="[^"]*"')
 
 
 @dataclass(slots=True)
@@ -25,6 +30,7 @@ class Snapshot:
 
 
 def _normalize_text(text: str) -> str:
+    text = _VOLATILE_NONCE_RE.sub('nonce="STRIPPED"', text)
     lines = [" ".join(line.split()) for line in text.splitlines()]
     return "\n".join(line for line in lines if line)
 
