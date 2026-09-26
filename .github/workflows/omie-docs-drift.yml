@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   drift:
@@ -28,6 +29,11 @@ jobs:
         run: pip install -e .
       - name: Scan official Omie documentation
         run: python -m omie_mcp.drift_cli
+      - name: Report drift as GitHub Issue (only when real changes are found)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python -m omie_mcp.drift_report
       - name: Upload drift report
         uses: actions/upload-artifact@v4
         with:
