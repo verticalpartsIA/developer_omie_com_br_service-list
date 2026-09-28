@@ -1,7 +1,7 @@
 
 # Gaps atuais do estudo Omie
 
-Data da revisão: 2026-09-26
+Data da revisão: 2026-09-28
 
 Comparação entre o conhecimento já registrado neste repositório e a lista oficial atual de serviços do Omie.
 
@@ -74,6 +74,8 @@ O radar (`omie-docs-drift.yml`) comparou a captura de `2026-09-26T16:35:30Z` com
 Como a issue não trouxe diffs de campo por serviço (apenas a lista de URLs cujo hash de página mudou) e o total de serviços não se alterou, não há evidência de mudança substantiva de API para incorporar aos gaps por módulo — o padrão (toda a base mudando de uma vez, sem adição/remoção) é mais consistente com uma alteração cosmética/estrutural das páginas (ex.: template, rodapé, timestamp) do que com uma mudança real de contrato de serviço. Nenhum item foi adicionado, removido ou alterado nas seções acima por causa desta issue.
 
 Se o radar voltar a acusar drift, vale revisar se `omie-docs-drift.yml` pode passar a incluir um diff de conteúdo por página (não só a lista de URLs), para que mudanças reais de campo fiquem acionáveis por esta curadoria.
+
+**Reconfirmação em 2026-09-28**: a Issue #18 permanecia aberta no GitHub nesta data (curadoria semanal seguinte). Não há informação nova além do que já está registrado acima — mesma issue, mesmo conteúdo, mesma conclusão de "sem gap acionável". O fechamento efetivo da issue depende de uma ação manual de um humano (a ferramenta de fechamento automático via API está bloqueada por padrão neste ambiente).
 
 ## Regra daqui em diante
 
