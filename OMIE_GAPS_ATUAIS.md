@@ -1,7 +1,7 @@
 
 # Gaps atuais do estudo Omie
 
-Data da revisão: 2026-10-05
+Data da revisão: 2026-10-12
 
 Comparação entre o conhecimento já registrado neste repositório e a lista oficial atual de serviços do Omie.
 
@@ -64,20 +64,33 @@ O estudo anterior já reconhecia esse gap agregado.
 
 ## Observações do radar automático
 
-### Issue #18 (2026-09-26) — sem gap acionável identificado
+### Issue #18 (2026-09-26) — sem gap acionável identificado; causa raiz confirmada
 
 O radar (`omie-docs-drift.yml`) comparou a captura de `2026-09-26T16:35:30Z` com a de `2026-09-26T18:31:26Z` e reportou:
 
 - Contagem de serviços: 138 → 138 (sem serviço novo, sem serviço removido).
 - 138 páginas de serviço marcadas como "conteúdo alterado" — ou seja, praticamente o catálogo inteiro, no mesmo curto intervalo de ~2h.
 
-Como a issue não trouxe diffs de campo por serviço (apenas a lista de URLs cujo hash de página mudou) e o total de serviços não se alterou, não há evidência de mudança substantiva de API para incorporar aos gaps por módulo — o padrão (toda a base mudando de uma vez, sem adição/remoção) é mais consistente com uma alteracão cosmética/estrutural das páginas (ex.: template, rodapé, timestamp) do que com uma mudança real de contrato de serviço. Nenhum item foi adicionado, removido ou alterado nas seções acima por causa desta issue.
+Como a issue não trouxe diffs de campo por serviço (apenas a lista de URLs cujo hash de página mudou) e o total de serviços não se alterou, não há evidência de mudança substantiva de API para incorporar aos gaps por módulo — o padrão (toda a base mudando de uma vez, sem adição/remoção) é mais consistente com uma alteração cosmética/estrutural das páginas (ex.: template, rodapé, timestamp) do que com uma mudança real de contrato de serviço. Nenhum item foi adicionado, removido ou alterado nas seções acima por causa desta issue.
 
-Se o radar voltar a acusar drift, vale revisar se `omie-docs-drift.yml` pode passar a incluir um diff de conteúdo por página (não só a lista de URLs), para que mudanças reais de campo fiquem acionáveis por esta curadoria.
+**Reconfirmação em 2026-09-28**: issue permanecia aberta, sem informação nova.
 
-**Reconfirmação em 2026-09-28**: a Issue #18 permanecia aberta no GitHub nesta data (curadoria semanal seguinte). Não há informação nova além do que já está registrado acima — mesma issue, mesmo conteúdo, mesma conclusão de "sem gap acionável". O fechamento efetivo da issue depende de uma ação manual de um humano (a ferramenta de fechamento automático via API está bloqueada por padrão neste ambiente).
+**Reconfirmação em 2026-10-05**: issue permanecia aberta, corpo idêntico, sem informação nova. README.md e instructions.md conferidos e já refletiam os gaps listados acima.
 
-**Reconfirmação em 2026-10-05**: a Issue #18 permanecia aberta no GitHub nesta data (curadoria semanal seguinte). O corpo da issue continua idêntico (mesmas capturas `2026-09-26T16:35:30Z` → `2026-09-26T18:31:26Z`, mesma contagem 138 → 138, mesmo hash de drift registrado na issue). Nenhuma informação nova para incorporar; conclusão mantida: sem gap acionável. README.md e instructions.md foram conferidos novamente e já refletem os itens listados nas seções acima, então não foram alterados nesta revisão. O fechamento efetivo da issue continua dependendo de ação manual de um humano.
+**Causa raiz (comentário de sessão humana em 2026-09-26, verificado nesta revisão de 2026-10-12)**: o servidor do Omie gera um `nonce` de CSP novo a cada resposta HTTP (mesmo conteúdo, mesma página), o que fazia toda página parecer alterada em toda execução do radar. O comentário registrado na issue afirmou ter aplicado a correção em `src/omie_mcp/watcher.py` (função `_normalize_text` passando a ignorar `nonce="..."` antes de calcular o hash) e ter fechado a issue manualmente. Ao ler `src/omie_mcp/watcher.py` em `main` nesta curadoria, **confirmamos que a correção está de fato presente no código** (`_VOLATILE_NONCE_RE = re.compile(r'nonce="[^"]*"')` normalizando o texto antes do `_sha`). No entanto, a issue **continuava aberta** no GitHub nesta revisão — ou seja, apesar do código corrigido, o fechamento efetivo (via API) aparentemente não se concretizou da vez anterior, ou foi bloqueado silenciosamente. Esta curadoria está tentando fechá-la novamente (ver comentário feito nesta revisão); se o fechamento automático estiver bloqueado neste ambiente, o fechamento efetivo continua dependendo de ação manual de um humano.
+
+### Issue #20 (2026-10-08) — drift pós-correção do nonce; sem gap acionável confirmado, mas padrão não totalmente explicado
+
+O radar comparou a captura de `2026-10-07T16:27:09Z` com a de `2026-10-08T16:27:31Z` e reportou:
+
+- Contagem de serviços: 138 → 138 (sem serviço novo, sem serviço removido).
+- 76 das 138 páginas de serviço marcadas como "conteúdo alterado" (lista cobrindo principalmente `crm/`, `estoque/`, `financas/` e `geral/`), no mesmo intervalo de ~24h.
+
+Diferente da Issue #18, esta captura ocorreu **depois** da correção do nonce CSP descrita acima (já confirmada presente em `main`). Isso significa que a explicação anterior ("toda página muda por causa do nonce volátil") não se aplica mais integralmente aqui — e ainda assim quase 55% das páginas foram sinalizadas como alteradas em ~24h, sem nenhuma mudança líquida na contagem de serviços.
+
+Não foi possível confirmar o que de fato mudou em cada página: a issue traz apenas a lista de URLs cujo hash mudou, sem diff de conteúdo por campo, e esta curadoria não dispõe de ferramenta para ler os logs/artefatos da execução do workflow (`gh_get_workflow_run` só retorna status/jobs, não o diff interno que `watcher.py` já calcula em `changed_service_pages[].diff_preview`). Portanto, **não há evidência suficiente para registrar um gap de campo específico por módulo nesta revisão**, mas também não há base para concluir com segurança que se trata apenas de ruído cosmético, como no caso anterior — pode haver alguma outra fonte de volatilidade nas páginas (ex.: outro token dinâmico, timestamp de geração, ordenação não determinística) que a correção do nonce não cobre.
+
+Nenhum item foi adicionado, removido ou alterado nas seções de gaps por módulo por causa desta issue. Recomendação registrada para o futuro: fazer `omie-docs-drift.yml` incluir no corpo da issue o `diff_preview` que `watcher.py` já calcula internamente (`changed_service_pages`), para que a curadoria semanal consiga avaliar mudanças reais de campo em vez de apenas uma lista de URLs com hash alterado.
 
 ## Regra daqui em diante
 
