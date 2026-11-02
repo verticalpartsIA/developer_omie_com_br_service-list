@@ -1,7 +1,6 @@
-
 # Gaps atuais do estudo Omie
 
-Data da revisão: 2026-10-26
+Data da revisão: 2026-11-02
 
 Comparação entre o conhecimento já registrado neste repositório e a lista oficial atual de serviços do Omie.
 
@@ -83,6 +82,8 @@ Como a issue não trouxe diffs de campo por serviço (apenas a lista de URLs cuj
 
 **Reconfirmação em 2026-10-26**: issue permanece aberta, corpo idêntico ao analisado desde 2026-09-26, sem informação nova. Nenhum gap por módulo foi adicionado/removido/alterado por causa desta issue nesta revisão. Esta curadoria comentou novamente e tentou fechá-la via `gh_api_call` (PATCH `state=closed`, `confirmation=BREAK_GLASS`); se recusado novamente pelo mesmo motivo (`GITHUB_ALLOW_BREAK_GLASS=false`), o fechamento efetivo continua dependendo de ação manual de um humano com permissão, ou de um administrador habilitando essa flag — já são 5 revisões semanais consecutivas tentando fechar esta issue sem sucesso.
 
+**Reconfirmação em 2026-11-02**: issue permanece aberta, corpo idêntico, sem informação nova. Nesta revisão, a própria ferramenta `gh_api_call` retornou erro técnico (`[Errno -2] Name or service not known`, falha de resolução de DNS) em vez do bloqueio explícito de break-glass das semanas anteriores — ou seja, desta vez não foi nem possível tentar o PATCH de fechamento. Comentário registrado na issue explicando a situação; fechamento efetivo segue pendente de ação manual (6ª revisão semanal consecutiva sem sucesso).
+
 ### Issue #20 (2026-10-08) — drift pós-correção do nonce; sem gap acionável confirmado, mas padrão não totalmente explicado
 
 O radar comparou a captura de `2026-10-07T16:27:09Z` com a de `2026-10-08T16:27:31Z` e reportou:
@@ -99,6 +100,8 @@ Nenhum item foi adicionado, removido ou alterado nas seções de gaps por módul
 **Reconfirmação em 2026-10-19**: issue permanece aberta, corpo idêntico, sem informação nova. Tentativa de fechamento recusada pelo mesmo bloqueio de break-glass.
 
 **Reconfirmação em 2026-10-26**: issue permanece aberta, corpo idêntico ao analisado desde 2026-10-08, sem informação nova. A recomendação de incluir `diff_preview` no corpo da issue do workflow continua pendente e fora do escopo desta curadoria (não editamos `.github/workflows/` nem `.py`). Esta curadoria comentou novamente e tentou fechá-la via `gh_api_call` break-glass.
+
+**Reconfirmação em 2026-11-02**: issue permanece aberta, corpo idêntico, sem informação nova. Assim como na Issue #18, a tentativa de fechamento nesta revisão esbarrou em erro técnico de DNS na ferramenta `gh_api_call` (não no bloqueio de break-glass de antes). Comentário registrado; fechamento efetivo segue pendente de humano.
 
 ### Issues #21 (2026-10-22) e #22 (2026-10-24) — provável quebra do próprio radar, não mudança real de documentação
 
@@ -118,6 +121,8 @@ Por isso, **nenhum serviço foi registrado como removido ou alterado nas seçõe
 3. Se a correção do nonce (`_VOLATILE_NONCE_RE`) ou alguma mudança recente em `watcher.py` introduziu uma regressão no parsing de serviços.
 
 Esta curadoria não tem ferramentas para investigar `.py`, logs de workflow ou fazer requisições HTTP diretas ao site do Omie — por isso o achado fica registrado aqui como texto, sem tentativa de correção de código.
+
+**Reconfirmação em 2026-11-02**: ambas as issues permanecem abertas, corpos idênticos aos analisados em 2026-10-26, sem informação nova. O alerta operacional acima continua válido e não verificado por um humano. Nenhum gap de módulo foi adicionado/removido por causa destas issues nesta revisão. Comentários registrados em ambas; tentativa de fechamento via `gh_api_call` falhou com erro técnico de DNS (`[Errno -2] Name or service not known`) nesta execução, impedindo até mesmo a tentativa do PATCH de fechamento.
 
 ## Regra daqui em diante
 
