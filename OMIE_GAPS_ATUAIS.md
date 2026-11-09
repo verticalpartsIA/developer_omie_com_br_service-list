@@ -1,6 +1,6 @@
 # Gaps atuais do estudo Omie
 
-Data da revisão: 2026-11-02
+Data da revisão: 2026-11-09
 
 Comparação entre o conhecimento já registrado neste repositório e a lista oficial atual de serviços do Omie.
 
@@ -84,6 +84,8 @@ Como a issue não trouxe diffs de campo por serviço (apenas a lista de URLs cuj
 
 **Reconfirmação em 2026-11-02**: issue permanece aberta, corpo idêntico, sem informação nova. Nesta revisão a chamada inicial a `gh_api_call` falhou com erro técnico de DNS (`[Errno -2] Name or service not known`), mas isso se revelou um problema de formatação do parâmetro `body_json` por parte desta curadoria (precisa ser enviado como string JSON-encodada, não como objeto), não uma falha da ferramenta em si. Corrigido o formato, a chamada PATCH chegou ao servidor e foi recusada normalmente com `Break-glass está desabilitado por GITHUB_ALLOW_BREAK_GLASS=false` — o mesmo bloqueio de permissão das semanas anteriores. Fechamento efetivo continua pendente de ação manual (6ª revisão semanal consecutiva sem sucesso).
 
+**Reconfirmação em 2026-11-09**: issue permanece aberta, corpo idêntico (mesmo `omie-drift-hash`), sem informação nova. Nenhum gap por módulo foi adicionado/removido/alterado por causa desta issue nesta revisão. Esta curadoria comentou novamente e tentará fechá-la via `gh_api_call` (PATCH `state=closed`, `confirmation=BREAK_GLASS`) nesta mesma execução; se recusado novamente pelo mesmo motivo (`GITHUB_ALLOW_BREAK_GLASS=false`), o fechamento efetivo continua dependendo de ação manual de um humano com permissão — já são 7 revisões semanais consecutivas tentando fechar esta issue sem sucesso.
+
 ### Issue #20 (2026-10-08) — drift pós-correção do nonce; sem gap acionável confirmado, mas padrão não totalmente explicado
 
 O radar comparou a captura de `2026-10-07T16:27:09Z` com a de `2026-10-08T16:27:31Z` e reportou:
@@ -103,9 +105,11 @@ Nenhum item foi adicionado, removido ou alterado nas seções de gaps por módul
 
 **Reconfirmação em 2026-11-02**: issue permanece aberta, corpo idêntico, sem informação nova. Tentativa de fechamento recusada pelo mesmo bloqueio de break-glass de sempre (`GITHUB_ALLOW_BREAK_GLASS=false`); o erro de DNS visto inicialmente nesta revisão foi causado por um parâmetro malformado desta curadoria, já corrigido (ver nota na Issue #18). Fechamento efetivo segue pendente de humano.
 
+**Reconfirmação em 2026-11-09**: issue permanece aberta, corpo idêntico, sem informação nova. A recomendação de incluir `diff_preview` no corpo da issue do workflow continua pendente e fora do escopo desta curadoria. Esta curadoria comentou novamente e tentará fechá-la via `gh_api_call` break-glass nesta mesma execução.
+
 ### Issues #21 (2026-10-22) e #22 (2026-10-24) — provável quebra do próprio radar, não mudança real de documentação
 
-Estas duas issues, novas nesta revisão, mostram um padrão qualitativamente diferente das anteriores (#18, #20) e merecem atenção operacional, não apenas de conteúdo:
+Estas duas issues, novas na revisão de 2026-10-26, mostram um padrão qualitativamente diferente das anteriores (#18, #20) e merecem atenção operacional, não apenas de conteúdo:
 
 - **Issue #21** comparou a captura de `2026-10-21T14:28:42Z` com a de `2026-10-22T14:30:37Z` e reportou **contagem de serviços: 138 → 0**, listando os 138 serviços anteriores como "removidos" e as mesmas 138 URLs como "páginas com conteúdo alterado".
 - **Issue #22** comparou `2026-10-23T14:13:40Z` com `2026-10-24T13:19:06Z` e reportou **contagem de serviços: 0 → 0** (sem páginas de serviço listadas).
@@ -123,6 +127,8 @@ Por isso, **nenhum serviço foi registrado como removido ou alterado nas seçõe
 Esta curadoria não tem ferramentas para investigar `.py`, logs de workflow ou fazer requisições HTTP diretas ao site do Omie — por isso o achado fica registrado aqui como texto, sem tentativa de correção de código.
 
 **Reconfirmação em 2026-11-02**: ambas as issues permanecem abertas, corpos idênticos aos analisados em 2026-10-26, sem informação nova. O alerta operacional acima continua válido e não verificado por um humano. Nenhum gap de módulo foi adicionado/removido por causa destas issues nesta revisão. Comentários registrados em ambas; tentativa de fechamento via `gh_api_call` recusada pelo mesmo bloqueio de break-glass de sempre (`GITHUB_ALLOW_BREAK_GLASS=false`) — o erro de DNS visto inicialmente nesta revisão foi causado por um parâmetro malformado desta curadoria, já corrigido (ver nota na Issue #18).
+
+**Reconfirmação em 2026-11-09**: ambas as issues permanecem abertas, corpos idênticos aos analisados em 2026-11-02 (mesmos `omie-drift-hash`), sem informação nova. O alerta operacional acima continua válido e não verificado por um humano — já se passaram 3 revisões semanais (2026-10-26, 2026-11-02, 2026-11-09) com a captura do radar aparentemente zerada (contagem 0 → 0 na issue mais recente), o que reforça a hipótese de falha de scraping/captura em vez de mudança real de documentação. Nenhum gap de módulo foi adicionado/removido por causa destas issues nesta revisão. Comentários registrados em ambas; tentativa de fechamento via `gh_api_call` será feita nesta mesma execução, sujeita ao mesmo bloqueio de break-glass de sempre.
 
 ## Regra daqui em diante
 
