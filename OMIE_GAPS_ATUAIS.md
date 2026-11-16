@@ -147,4 +147,5 @@ Quando surgir qualquer mudança oficial:
 1. registrar a diferença;
 2. classificar o módulo afetado;
 3. atualizar README/instructions/issues quando necessário;
-4. manter `omie_chamar_api` como cobertura imediata para a operação nova.
+4. criar ferramenta tipada apenas quando houver valor de uso recorrente;
+5. manter `omie_chamar_api` como cobertura imediata para a operação nova.
